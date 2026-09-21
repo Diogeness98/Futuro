@@ -61,7 +61,7 @@ export async function syncTikTokOrders(
 
   for (const shop of shops) {
     let pageToken: string | undefined;
-    const maxPages = Math.min(20, Math.max(1, options.maxPagesPerShop ?? 5));
+    const maxPages = Math.min(50, Math.max(1, options.maxPagesPerShop ?? 20));
 
     for (let page = 0; page < maxPages; page += 1) {
       const result = await searchTikTokOrders(accessToken, shop.cipher, {
@@ -116,6 +116,12 @@ export async function syncTikTokOrders(
       summary.pages += 1;
       pageToken = result.nextPageToken;
       if (!pageToken) break;
+    }
+
+    if (pageToken) {
+      throw new Error(
+        `A sincronização da loja ${shop.name ?? shop.code ?? "TikTok"} atingiu o limite seguro de páginas. A execução não será marcada como concluída para evitar perda silenciosa de pedidos.`,
+      );
     }
   }
 
