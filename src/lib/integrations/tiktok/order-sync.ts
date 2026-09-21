@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { moneyToCents } from "@/lib/http";
-import { searchTikTokOrders, type TikTokOrderSummary } from "./client";
+import { searchTikTokOrders } from "./client";
+import { normalizeTikTokOrder } from "./order-normalize";
 import { loadTikTokConnection, updateTikTokTokens } from "./storage";
 import { refreshTikTokAccessToken } from "./tokens";
 
@@ -83,7 +83,7 @@ export async function syncTikTokOrders(
         const existingIds = new Set(existing.map((order) => order.externalId).filter(Boolean));
 
         for (const order of result.orders) {
-          const normalized = normalizeOrder(order);
+          const normalized = normalizeTikTokOrder(order);
           if (!normalized.externalId) continue;
 
           await db.order.upsert({
@@ -120,19 +120,6 @@ export async function syncTikTokOrders(
   }
 
   return summary;
-}
-
-export function normalizeOrder(order: TikTokOrderSummary) {
-  return {
-    externalId: typeof order.id === "string" ? order.id : String(order.id ?? ""),
-    status: typeof order.status === "string" && order.status
-      ? order.status.toLowerCase()
-      : "unknown",
-    totalCents: moneyToCents(order.payment?.total_amount ?? 0),
-    currency: typeof order.payment?.currency === "string" ? order.payment.currency : undefined,
-    createTime: typeof order.create_time === "number" ? order.create_time : undefined,
-    updateTime: typeof order.update_time === "number" ? order.update_time : undefined,
-  };
 }
 
 function shouldRefresh(accessTokenExpiresAt?: number) {
