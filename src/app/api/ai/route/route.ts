@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeAiTask } from "@/lib/ai/router";
 import { routeTask } from "@/lib/ai/policy";
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 const taskSchema = z.object({
   input: z.string().min(1).max(20_000),
@@ -12,14 +14,41 @@ const taskSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ ok: false, error: "Não autorizado." }, { status: 401 });
+  }
+
   try {
     const parsed = taskSchema.parse(await request.json());
     const { dryRun, ...task } = parsed;
     const plan = routeTask(task);
 
-    if (dryRun) return NextResponse.json({ ok: true, plan });
+    if (dryRun) {
+      return NextResponse.json({ ok: true, plan });
+    }
 
     const result = await executeAiTask(task);
+
+    await db.aiDecision.create({
+      data: {
+        organizationId: session.organizationId,
+        provider: result.provider,
+        taskType: task.taskType ?? "auto",
+        inputSummary: task.input.slice(0, 500),
+        confidence: result.confidence,
+        inputTokens: result.usage?.inputTokens,
+        outputTokens: result.usage?.outputTokens,
+        decision: {
+          plan,
+          result: result.result,
+          escalated: result.escalated ?? false,
+          manualReview: result.manualReview ?? false,
+          workRecommended: result.workRecommended ?? false,
+        },
+      },
+    });
+
     return NextResponse.json({ ok: true, plan, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
