@@ -4,9 +4,11 @@ import { recordActivity } from "@/lib/activity";
 import { loadTikTokConnection, updateTikTokTokens } from "@/lib/integrations/tiktok/storage";
 import { refreshTikTokAccessToken } from "@/lib/integrations/tiktok/tokens";
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+
+  const wantsJson = (request.headers.get("content-type") ?? "").includes("application/json");
 
   try {
     const connection = await loadTikTokConnection(session.organizationId);
@@ -24,14 +26,22 @@ export async function POST() {
       metadata: { provider: "tiktok_shop" },
     });
 
-    return NextResponse.json({
-      ok: true,
-      accessTokenExpiresAt: tokens.accessTokenExpiresAt ?? null,
-      refreshTokenExpiresAt: tokens.refreshTokenExpiresAt ?? null,
-    });
+    if (wantsJson) {
+      return NextResponse.json({
+        ok: true,
+        accessTokenExpiresAt: tokens.accessTokenExpiresAt ?? null,
+        refreshTokenExpiresAt: tokens.refreshTokenExpiresAt ?? null,
+      });
+    }
+
+    return NextResponse.redirect(new URL("/integrations?tiktok=refreshed", request.url), 303);
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Falha ao renovar TikTok Shop.",
-    }, { status: 400 });
+    if (wantsJson) {
+      return NextResponse.json({
+        error: error instanceof Error ? error.message : "Falha ao renovar TikTok Shop.",
+      }, { status: 400 });
+    }
+
+    return NextResponse.redirect(new URL("/integrations?tiktok=refresh_error", request.url), 303);
   }
 }
