@@ -21,6 +21,7 @@ O repositório `Diogeness98/Futuro` é a fonte de verdade.
 - autenticação própria com cookie HTTP-only/JWT
 - Jev System One adapter
 - OpenAI Responses API
+- TikTok Shop OAuth + assinatura + sincronização inicial de pedidos
 - GitHub Actions para typecheck, testes e build
 
 ## Ordem econômica de IA
@@ -54,7 +55,10 @@ Não adicionar funcionalidades durante esta tarefa.
 AUTH_SECRET=
 APP_URL=
 DATABASE_URL=
+INTEGRATION_ENCRYPTION_KEY=
 ```
+
+`INTEGRATION_ENCRYPTION_KEY` deve ser uma chave aleatória de 32 bytes em Base64 e deve existir apenas no ambiente do servidor.
 
 ### OpenAI
 
@@ -67,6 +71,7 @@ OPENAI_DEFAULT_REASONING_EFFORT=low
 OPENAI_ESCALATION_REASONING_EFFORT=medium
 OPENAI_DEFAULT_MAX_OUTPUT_TOKENS=1600
 OPENAI_ESCALATION_MAX_OUTPUT_TOKENS=6000
+OPENAI_TIMEOUT_MS=30000
 OPENAI_MAX_CALLS_PER_24H=100
 OPENAI_MAX_INPUT_TOKENS_PER_24H=200000
 OPENAI_MAX_OUTPUT_TOKENS_PER_24H=40000
@@ -93,6 +98,8 @@ JEV_API_URL=https://api.typesafe.ai/v1/systemone
 JEV_MODEL=jev-latest
 JEV_AUTO_EXECUTE_THRESHOLD=0.92
 JEV_GPT_REVIEW_THRESHOLD=0.75
+JEV_TIMEOUT_MS=12000
+JEV_FALLBACK_TO_GPT_ON_ERROR=false
 ```
 
 Após inserir a chave como secret no ambiente, alterar:
@@ -111,13 +118,43 @@ O adapter do projeto usa Choice com:
 
 A resposta esperada é lida de `answers.decision`, incluindo `choice`, `probabilities` e `confidence`.
 
+### TikTok Shop
+
+A integração já existe no código. Não recriar.
+
+```env
+TIKTOK_SHOP_APP_KEY=
+TIKTOK_SHOP_APP_SECRET=
+TIKTOK_SHOP_AUTH_URL=
+TIKTOK_SHOP_AUTH_BASE_URL=https://auth.tiktok-shops.com
+TIKTOK_SHOP_API_BASE_URL=https://open-api.tiktokglobalshop.com
+TIKTOK_SHOP_TIMEOUT_MS=20000
+```
+
+`TIKTOK_SHOP_AUTH_URL` deve receber o Seller Authorization Link fornecido pelo Partner Center.
+
+O código já implementa:
+
+- estado OAuth em cookie HTTP-only para proteção de callback;
+- troca de authorization code por access/refresh token;
+- refresh token;
+- assinatura HMAC-SHA256 das chamadas Open API;
+- Get Authorized Shops;
+- armazenamento dos tokens com AES-256-GCM;
+- conexão, refresh e desconexão local;
+- sincronização incremental de pedidos;
+- proteção contra edição manual de pedidos sincronizados.
+
+Na primeira configuração real do TikTok, apenas inserir secrets e validar o fluxo. Não reescrever o adapter.
+
 ## Segurança
 
 - Nunca inserir chaves em arquivos versionados.
 - Nunca usar prefixo `NEXT_PUBLIC_` para segredos.
 - Nunca imprimir chaves em logs.
 - Não enviar segredos ao navegador.
-- Não salvar credenciais no banco sem criptografia apropriada.
+- Tokens TikTok ficam criptografados antes de serem gravados no banco.
+- Não substituir `INTEGRATION_ENCRYPTION_KEY` depois que credenciais já tiverem sido gravadas sem fazer uma migração controlada.
 
 ## Critérios de aceite da importação
 
@@ -129,7 +166,8 @@ A tarefa só é considerada concluída quando:
 - dashboard abre;
 - produtos podem ser criados, editados e excluídos;
 - clientes podem ser criados, editados e excluídos;
-- pedidos podem ser criados, editados e excluídos;
+- pedidos manuais podem ser criados, editados e excluídos;
+- pedidos sincronizados aparecem como gerenciados pela integração;
 - página de Automações abre;
 - página de IA abre;
 - página de Integrações abre;
@@ -142,7 +180,7 @@ A tarefa só é considerada concluída quando:
 
 ## O que NÃO fazer na primeira passagem
 
-- não integrar TikTok Shop;
+- não reconstruir TikTok Shop;
 - não refazer design;
 - não trocar autenticação;
 - não trocar banco;
@@ -153,17 +191,20 @@ A tarefa só é considerada concluída quando:
 - não alterar a política Jev → GPT;
 - não usar Work para tarefas resolvíveis via código/API.
 
-## Depois da importação
+## Validação depois da importação
 
-Somente após todos os critérios acima passarem:
+Somente após todos os critérios básicos passarem:
 
 1. configurar OpenAI com a chave real;
 2. configurar Jev com a chave real e `JEV_MODE=live`;
 3. testar o painel de decisão Jev;
 4. testar roteamento Jev → GPT;
-5. integrar TikTok Shop;
-6. implementar automações reais;
-7. testes ponta a ponta;
-8. deploy de produção.
+5. configurar os secrets do TikTok Shop;
+6. conectar uma Development/Test Shop;
+7. confirmar lojas autorizadas;
+8. executar a sincronização de pedidos;
+9. validar que pedidos TikTok não podem ser alterados manualmente;
+10. testes ponta a ponta;
+11. deploy de produção.
 
 Após cada etapa bem-sucedida, parar e salvar um checkpoint no GitHub.
