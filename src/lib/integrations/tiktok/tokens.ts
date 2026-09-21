@@ -104,7 +104,12 @@ function numberValue(value: unknown) {
 }
 
 function scopesValue(value: unknown): string[] | undefined {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === "string") return value.split(/[,s]+/).map((item) => item.trim()).filter(Boolean);
-  return undefined;
+  if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
+  if (typeof value !== "string") return undefined;
+
+  return value
+    .split(",")
+    .flatMap((part) => part.trim().split(" "))
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
