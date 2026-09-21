@@ -32,8 +32,10 @@ export interface ProviderUsage {
 export interface AiExecutionResult {
   provider: Provider;
   result: string | JevDecision | Record<string, unknown>;
+  model?: string;
   confidence?: number;
   usage?: ProviderUsage;
   escalated?: boolean;
   workRecommended?: boolean;
+  initialJevDecision?: JevDecision;
 }

@@ -133,20 +133,25 @@ model Automation {
 }
 
 model AiDecision {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  provider       String
-  taskType       String
-  inputSummary   String?
-  decision       Json?
-  confidence     Float?
-  inputTokens    Int?
-  outputTokens   Int?
-  costUsd        Decimal?     @db.Decimal(12, 8)
-  createdAt      DateTime     @default(now())
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider        String
+  model           String?
+  taskType        String
+  routeReason     String?
+  inputSummary    String?
+  decision        Json?
+  confidence      Float?
+  inputTokens     Int?
+  outputTokens    Int?
+  costUsd         Decimal?     @db.Decimal(12, 8)
+  escalated       Boolean      @default(false)
+  workRecommended Boolean      @default(false)
+  createdAt       DateTime     @default(now())
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, provider])
 }
 
 model ActivityLog {
