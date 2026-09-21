@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
+import { recordActivity } from "@/lib/activity";
 
 export async function GET() {
   const session = await getSession();
@@ -23,6 +24,16 @@ export async function POST(request: Request) {
     }
     const totalCents = input.totalCents !== undefined ? Math.max(0, integer(input.totalCents)) : moneyToCents(input.total);
     const order = await db.order.create({ data: { organizationId: session.organizationId, customerId: input.customerId || null, status: input.status || "pending", channel: input.channel || "manual", totalCents } });
+
+    await recordActivity({
+      organizationId: session.organizationId,
+      actorId: session.userId,
+      action: "order.created",
+      entityType: "Order",
+      entityId: order.id,
+      metadata: { status: order.status, channel: order.channel, totalCents: order.totalCents },
+    });
+
     if ((request.headers.get("content-type") ?? "").includes("application/json")) return NextResponse.json({ order }, { status: 201 });
     return NextResponse.redirect(new URL("/orders", request.url), 303);
   } catch (error) {
