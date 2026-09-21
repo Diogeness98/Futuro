@@ -5,6 +5,12 @@ function numberFromEnv(name: string, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function booleanFromEnv(name: string, fallback: boolean) {
+  const value = process.env[name];
+  if (value === undefined) return fallback;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
 function effortFromEnv(name: string, fallback: ReasoningEffort): ReasoningEffort {
   const value = process.env[name];
   const allowed: ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh", "max"];
@@ -24,6 +30,7 @@ export const aiConfig = {
     maxCallsPer24h: numberFromEnv("OPENAI_MAX_CALLS_PER_24H", 100),
     maxInputTokensPer24h: numberFromEnv("OPENAI_MAX_INPUT_TOKENS_PER_24H", 200_000),
     maxOutputTokensPer24h: numberFromEnv("OPENAI_MAX_OUTPUT_TOKENS_PER_24H", 40_000),
+    timeoutMs: numberFromEnv("OPENAI_TIMEOUT_MS", 30_000),
   },
   jev: {
     mode: process.env.JEV_MODE ?? "mock",
@@ -32,5 +39,7 @@ export const aiConfig = {
     model: process.env.JEV_MODEL ?? "jev-latest",
     autoExecuteThreshold: numberFromEnv("JEV_AUTO_EXECUTE_THRESHOLD", 0.92),
     gptReviewThreshold: numberFromEnv("JEV_GPT_REVIEW_THRESHOLD", 0.75),
+    timeoutMs: numberFromEnv("JEV_TIMEOUT_MS", 12_000),
+    fallbackToGptOnError: booleanFromEnv("JEV_FALLBACK_TO_GPT_ON_ERROR", false),
   },
 };
