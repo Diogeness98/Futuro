@@ -92,3 +92,14 @@ th { color: var(--muted); font-weight: 600; }
   .integration-grid { grid-template-columns: 1fr; }
   .settings-grid { grid-template-columns: 1fr; }
 }
+
+
+.row-actions { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; min-width: 130px; }
+.row-actions details { position: relative; }
+.row-actions summary { color: var(--accent); cursor: pointer; font-size: 13px; user-select: none; }
+.mini-form { margin-top: 8px; min-width: 210px; display: grid; gap: 7px; padding: 10px; background: #0e1115; border: 1px solid var(--border); border-radius: 10px; }
+.mini-form input, .mini-form select { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 8px 9px; }
+.secondary { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--panel-2); color: var(--text); font-weight: 700; cursor: pointer; }
+.secondary:disabled, .danger-link:disabled { opacity: .55; cursor: wait; }
+.danger-link { border: 0; background: transparent; color: #ff8e99; padding: 0; cursor: pointer; font-size: 13px; }
+.inline-error { width: 100%; color: #ffb4bc; font-size: 12px; }
