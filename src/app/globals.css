@@ -134,3 +134,8 @@ th { color: var(--muted); font-weight: 600; }
 
 .automation-manage { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 .automation-manage .secondary, .automation-manage .danger-button { padding: 6px 8px; font-size: 12px; }
+
+.automation-run-form { min-width: 280px; }
+.automation-result { display: grid; gap: 8px; margin-top: 4px; }
+.automation-result-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+.automation-result pre { margin: 0; max-width: 420px; max-height: 280px; overflow: auto; background: #0a0d10; border: 1px solid var(--border); border-radius: 8px; padding: 9px; font-size: 11px; white-space: pre-wrap; word-break: break-word; }
