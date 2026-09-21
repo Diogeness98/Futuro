@@ -22,6 +22,7 @@ interface OrderProps {
   id: string;
   status: string;
   totalCents: number;
+  channel: string;
 }
 
 async function apiRequest(url: string, init: RequestInit) {
@@ -122,8 +123,12 @@ export function CustomerActions({ id, name, email, phone }: CustomerProps) {
   );
 }
 
-export function OrderActions({ id, status, totalCents }: OrderProps) {
+export function OrderActions({ id, status, totalCents, channel }: OrderProps) {
   const mutation = useMutation();
+
+  if (channel !== "manual") {
+    return <span className="readonly-note">Gerenciado pela integração</span>;
+  }
 
   async function update(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
