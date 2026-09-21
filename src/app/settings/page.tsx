@@ -29,12 +29,15 @@ export default async function SettingsPage() {
           <dl className="settings-list">
             <div><dt>Jev automático</dt><dd>{Math.round(aiConfig.jev.autoExecuteThreshold * 100)}%+</dd></div>
             <div><dt>Zona GPT</dt><dd>{Math.round(aiConfig.jev.gptReviewThreshold * 100)}%–{Math.round(aiConfig.jev.autoExecuteThreshold * 100) - 1}%</dd></div>
+            <div><dt>Timeout Jev</dt><dd>{Math.round(aiConfig.jev.timeoutMs / 1000)}s</dd></div>
+            <div><dt>Fallback Jev → GPT em erro</dt><dd>{aiConfig.jev.fallbackToGptOnError ? "Ativo" : "Bloqueado"}</dd></div>
             <div><dt>Modelo econômico</dt><dd>{aiConfig.openai.defaultModel}</dd></div>
             <div><dt>Raciocínio econômico</dt><dd>{aiConfig.openai.defaultReasoningEffort}</dd></div>
             <div><dt>Saída econômica</dt><dd>{aiConfig.openai.defaultMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
             <div><dt>Modelo forte</dt><dd>{aiConfig.openai.escalationModel}</dd></div>
             <div><dt>Raciocínio forte</dt><dd>{aiConfig.openai.escalationReasoningEffort}</dd></div>
             <div><dt>Saída forte</dt><dd>{aiConfig.openai.escalationMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
+            <div><dt>Timeout OpenAI</dt><dd>{Math.round(aiConfig.openai.timeoutMs / 1000)}s</dd></div>
             <div><dt>Entrada máxima por tarefa</dt><dd>{aiConfig.openai.maxInputChars.toLocaleString("pt-BR")} caracteres</dd></div>
             <div><dt>Chamadas / 24h</dt><dd>{aiConfig.openai.maxCallsPer24h.toLocaleString("pt-BR")}</dd></div>
             <div><dt>Entrada / 24h</dt><dd>{aiConfig.openai.maxInputTokensPer24h.toLocaleString("pt-BR")} tokens</dd></div>
