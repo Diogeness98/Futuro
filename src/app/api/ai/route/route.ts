@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { executeAiTask } from "@/lib/ai/router";
 import { routeTask } from "@/lib/ai/policy";
+import { getOpenAiBudgetStatus } from "@/lib/ai/budget";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -24,18 +25,30 @@ export async function POST(request: Request) {
     const parsed = taskSchema.parse(await request.json());
     const { dryRun, ...task } = parsed;
     const plan = routeTask(task);
+    const budget = await getOpenAiBudgetStatus(session.organizationId);
 
     if (dryRun) {
-      return NextResponse.json({ ok: true, plan });
+      return NextResponse.json({ ok: true, plan, budget });
     }
 
-    const result = await executeAiTask(task);
+    const result = await executeAiTask(task, {
+      allowOpenAI: budget.allowed,
+      budgetReason: budget.reasons.join(" "),
+    });
+
     const decisionPayload = JSON.parse(JSON.stringify({
       plan,
       result: result.result,
       escalated: result.escalated ?? false,
       manualReview: result.manualReview ?? false,
       workRecommended: result.workRecommended ?? false,
+      openAiBudget: {
+        allowed: budget.allowed,
+        calls: budget.calls,
+        inputTokens: budget.inputTokens,
+        outputTokens: budget.outputTokens,
+        reasons: budget.reasons,
+      },
     })) as Prisma.InputJsonValue;
 
     await db.aiDecision.create({
@@ -51,7 +64,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, plan, result });
+    return NextResponse.json({ ok: true, plan, budget, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
