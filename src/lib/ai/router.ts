@@ -16,30 +16,43 @@ export async function executeAiTask(task: AiTask): Promise<AiExecutionResult> {
     const decision = await decideWithJev({ state: task.input, options });
 
     if (decision.confidence >= aiConfig.jev.autoExecuteThreshold && aiConfig.jev.mode !== "mock") {
-      return { provider: "jev", result: decision, confidence: decision.confidence };
+      return {
+        provider: "jev",
+        result: decision,
+        confidence: decision.confidence,
+      };
     }
 
+    const reviewModel =
+      aiConfig.jev.mode === "mock" || decision.confidence >= aiConfig.jev.gptReviewThreshold
+        ? aiConfig.openai.defaultModel
+        : aiConfig.openai.escalationModel;
+
     const reviewPrompt = [
-      "Você é o revisor de baixo custo do roteador Futuro.",
+      "Você é o revisor do roteador econômico do Futuro.",
       `Tarefa: ${task.input}`,
       `Opções permitidas: ${options.join(", ")}`,
       `Jev escolheu: ${decision.decision} com confiança ${decision.confidence}.`,
-      "Responda de forma curta indicando a opção mais adequada e uma justificativa de uma frase.",
+      "Escolha somente uma das opções permitidas e justifique em uma frase curta.",
     ].join("\n");
 
-    const reviewed = await generateWithOpenAI(reviewPrompt, aiConfig.openai.defaultModel);
+    const reviewed = await generateWithOpenAI(reviewPrompt, reviewModel);
     return {
       provider: "openai",
+      model: reviewModel,
       result: reviewed.text,
       usage: reviewed.usage,
       escalated: true,
       confidence: decision.confidence,
+      initialJevDecision: decision,
     };
   }
 
-  const generated = await generateWithOpenAI(task.input, route.model);
+  const model = route.model ?? aiConfig.openai.defaultModel;
+  const generated = await generateWithOpenAI(task.input, model);
   return {
     provider: "openai",
+    model,
     result: generated.text,
     usage: generated.usage,
     workRecommended: route.workRecommended,

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getSession } from "@/lib/auth";
+import { recordAiExecution } from "@/lib/ai/audit";
 import { executeAiTask } from "@/lib/ai/router";
 import { routeTask } from "@/lib/ai/policy";
 
@@ -12,15 +14,32 @@ const taskSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ ok: false, error: "Não autorizado." }, { status: 401 });
+
   try {
     const parsed = taskSchema.parse(await request.json());
     const { dryRun, ...task } = parsed;
     const plan = routeTask(task);
 
-    if (dryRun) return NextResponse.json({ ok: true, plan });
+    // Dry-run é gratuito: mostra a rota sem chamar Jev/GPT e sem gravar consumo.
+    if (dryRun) return NextResponse.json({ ok: true, plan, charged: false });
 
     const result = await executeAiTask(task);
-    return NextResponse.json({ ok: true, plan, result });
+    const audit = await recordAiExecution({
+      organizationId: session.organizationId,
+      userId: session.userId,
+      task,
+      plan,
+      result,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      plan,
+      result,
+      auditId: audit.id,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
