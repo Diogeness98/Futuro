@@ -1,5 +1,5 @@
 import { aiConfig } from "./config";
-import { db } from "@/lib/db";
+import { db } from "../db";
 
 export interface OpenAiBudgetUsage {
   calls: number;
