@@ -6,9 +6,11 @@ const navigation = [
   ["/orders", "Pedidos"],
   ["/products", "Produtos"],
   ["/customers", "Clientes"],
-  ["/#automation", "Automações"],
-  ["/#ai", "IA"],
-  ["/#integrations", "Integrações"],
+  ["/automations", "Automações"],
+  ["/ai", "IA"],
+  ["/integrations", "Integrações"],
+  ["/logs", "Logs"],
+  ["/settings", "Configurações"],
 ] as const;
 
 export function AppShell({ children, active, email }: { children: ReactNode; active: string; email: string }) {
