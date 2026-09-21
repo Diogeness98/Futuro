@@ -27,8 +27,9 @@ export const aiConfig = {
   },
   jev: {
     mode: process.env.JEV_MODE ?? "mock",
-    apiKey: process.env.JEV_API_KEY ?? "",
-    apiUrl: process.env.JEV_API_URL ?? "",
+    apiKey: process.env.JEV_API_KEY ?? process.env.TYPESAFE_API_KEY ?? "",
+    apiUrl: process.env.JEV_API_URL ?? "https://api.typesafe.ai/v1/systemone",
+    model: process.env.JEV_MODEL ?? "jev-latest",
     autoExecuteThreshold: numberFromEnv("JEV_AUTO_EXECUTE_THRESHOLD", 0.92),
     gptReviewThreshold: numberFromEnv("JEV_GPT_REVIEW_THRESHOLD", 0.75),
   },
