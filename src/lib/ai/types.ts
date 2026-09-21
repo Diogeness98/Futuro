@@ -5,6 +5,8 @@ export interface AiTask {
   input: string;
   taskType?: TaskType;
   options?: string[];
+  decisionInstructions?: string;
+  criteria?: Record<string, string>;
   requiresExternalInteraction?: boolean;
   metadata?: Record<string, unknown>;
 }
@@ -20,6 +22,11 @@ export interface JevDecision {
   decision: string;
   confidence: number;
   probabilities?: Record<string, number>;
+  model?: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
   raw?: unknown;
 }
 
