@@ -79,6 +79,9 @@ export default async function IntegrationsPage() {
               </div>
 
               <div className="integration-actions">
+                <form action="/api/integrations/tiktok/sync-orders" method="post">
+                  <button className="primary" type="submit">Sincronizar pedidos</button>
+                </form>
                 <form action="/api/integrations/tiktok/refresh" method="post">
                   <button className="secondary" type="submit">Renovar token</button>
                 </form>
