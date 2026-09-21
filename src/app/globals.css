@@ -128,3 +128,6 @@ th { color: var(--muted); font-weight: 600; }
 .danger-button { border: 1px solid #6b2a32; border-radius: 8px; padding: 8px 10px; background: #261216; color: #ffb4bc; font-weight: 700; cursor: pointer; }
 
 .readonly-note { color: var(--muted); font-size: 12px; }
+
+.mini-form textarea { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 8px 9px; resize: vertical; }
+.automation-test summary { color: var(--accent); cursor: pointer; font-size: 13px; }
