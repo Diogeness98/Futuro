@@ -126,3 +126,5 @@ th { color: var(--muted); font-weight: 600; }
 .integration-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .action-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 14px; }
 .danger-button { border: 1px solid #6b2a32; border-radius: 8px; padding: 8px 10px; background: #261216; color: #ffb4bc; font-weight: 700; cursor: pointer; }
+
+.readonly-note { color: var(--muted); font-size: 12px; }
