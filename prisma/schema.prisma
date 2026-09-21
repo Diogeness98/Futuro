@@ -28,6 +28,7 @@ model Organization {
   automations  Automation[]
   aiDecisions  AiDecision[]
   activityLogs ActivityLog[]
+  automationEvents AutomationEvent[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -162,4 +163,23 @@ model ActivityLog {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
+}
+
+
+model AutomationEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  triggerType    String
+  entityType     String?
+  entityId       String?
+  payload        Json
+  status         String       @default("pending")
+  attempts       Int          @default(0)
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  processedAt    DateTime?
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, triggerType, entityId])
 }
