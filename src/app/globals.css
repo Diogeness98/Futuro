@@ -20,7 +20,7 @@ button, input, select { font: inherit; }
 .brand span { color: var(--accent); }
 .nav { display: grid; gap: 6px; }
 .nav a { padding: 10px 12px; border-radius: 9px; color: var(--muted); }
-.nav a:first-child, .nav a:hover, .nav a.active { background: var(--panel-2); color: var(--text); }
+.nav a:hover, .nav a.active { background: var(--panel-2); color: var(--text); }
 .main { padding: 32px; max-width: 1400px; width: 100%; }
 .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
 h1 { font-size: 34px; letter-spacing: -.04em; margin: 7px 0 8px; }
