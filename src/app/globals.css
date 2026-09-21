@@ -103,3 +103,12 @@ th { color: var(--muted); font-weight: 600; }
 .secondary:disabled, .danger-link:disabled { opacity: .55; cursor: wait; }
 .danger-link { border: 0; background: transparent; color: #ff8e99; padding: 0; cursor: pointer; font-size: 13px; }
 .inline-error { width: 100%; color: #ffb4bc; font-size: 12px; }
+
+
+.budget-grid { display: grid; gap: 14px; margin-top: 16px; }
+.budget-item { display: grid; gap: 7px; }
+.budget-line { display: flex; justify-content: space-between; gap: 14px; font-size: 13px; color: var(--muted); }
+.budget-line strong { color: var(--text); }
+.budget-track { height: 8px; border-radius: 999px; background: #0e1115; border: 1px solid var(--border); overflow: hidden; }
+.budget-fill { height: 100%; background: var(--accent); }
+.budget-warning { margin: 14px 0 0; color: #ffb4bc; }
