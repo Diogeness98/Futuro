@@ -127,7 +127,7 @@ export async function searchTikTokOrders(
     query: {
       page_size: Math.min(100, Math.max(1, options.pageSize ?? 100)),
       page_token: options.pageToken,
-      sort_field: "update_time",
+      sort_field: "create_time",
       sort_order: "ASC",
     },
     body: options.updateTimeGe ? { update_time_ge: options.updateTimeGe } : {},
