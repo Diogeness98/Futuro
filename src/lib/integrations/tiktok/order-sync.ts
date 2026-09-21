@@ -1,0 +1,151 @@
+import { db } from "@/lib/db";
+import { moneyToCents } from "@/lib/http";
+import { searchTikTokOrders, type TikTokOrderSummary } from "./client";
+import { loadTikTokConnection, updateTikTokTokens } from "./storage";
+import { refreshTikTokAccessToken } from "./tokens";
+
+const CHANNEL = "tiktok_shop";
+const FIRST_SYNC_SECONDS = 7 * 24 * 60 * 60;
+const OVERLAP_SECONDS = 2 * 60 * 60;
+
+export interface TikTokOrderSyncSummary {
+  synced: number;
+  created: number;
+  updated: number;
+  pages: number;
+  shops: number;
+  since: number;
+}
+
+export async function syncTikTokOrders(
+  organizationId: string,
+  options: { maxPagesPerShop?: number } = {},
+): Promise<TikTokOrderSyncSummary> {
+  const connection = await loadTikTokConnection(organizationId);
+  if (!connection) throw new Error("TikTok Shop não está conectado.");
+
+  assertOrderScope(connection.config.grantedScopes);
+
+  let accessToken = connection.tokens.accessToken;
+  if (shouldRefresh(connection.config.accessTokenExpiresAt)) {
+    const refreshed = await refreshTikTokAccessToken(connection.tokens.refreshToken);
+    await updateTikTokTokens(organizationId, refreshed);
+    accessToken = refreshed.accessToken;
+  }
+
+  const shops = connection.config.shops.filter((shop) => Boolean(shop.cipher));
+  if (shops.length === 0) throw new Error("Nenhuma loja TikTok autorizada foi encontrada.");
+
+  const lastSync = await db.activityLog.findFirst({
+    where: {
+      organizationId,
+      action: "integration.tiktok.orders_synced",
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const since = lastSync
+    ? Math.max(0, Math.floor(lastSync.createdAt.getTime() / 1000) - OVERLAP_SECONDS)
+    : nowSeconds - FIRST_SYNC_SECONDS;
+
+  const summary: TikTokOrderSyncSummary = {
+    synced: 0,
+    created: 0,
+    updated: 0,
+    pages: 0,
+    shops: shops.length,
+    since,
+  };
+
+  for (const shop of shops) {
+    let pageToken: string | undefined;
+    const maxPages = Math.min(20, Math.max(1, options.maxPagesPerShop ?? 5));
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const result = await searchTikTokOrders(accessToken, shop.cipher, {
+        updateTimeGe: since,
+        pageToken,
+        pageSize: 100,
+      });
+
+      if (result.orders.length > 0) {
+        const ids = result.orders.map((order) => String(order.id)).filter(Boolean);
+        const existing = await db.order.findMany({
+          where: {
+            organizationId,
+            channel: CHANNEL,
+            externalId: { in: ids },
+          },
+          select: { externalId: true },
+        });
+        const existingIds = new Set(existing.map((order) => order.externalId).filter(Boolean));
+
+        for (const order of result.orders) {
+          const normalized = normalizeOrder(order);
+          if (!normalized.externalId) continue;
+
+          await db.order.upsert({
+            where: {
+              organizationId_channel_externalId: {
+                organizationId,
+                channel: CHANNEL,
+                externalId: normalized.externalId,
+              },
+            },
+            create: {
+              organizationId,
+              externalId: normalized.externalId,
+              channel: CHANNEL,
+              status: normalized.status,
+              totalCents: normalized.totalCents,
+            },
+            update: {
+              status: normalized.status,
+              totalCents: normalized.totalCents,
+            },
+          });
+
+          summary.synced += 1;
+          if (existingIds.has(normalized.externalId)) summary.updated += 1;
+          else summary.created += 1;
+        }
+      }
+
+      summary.pages += 1;
+      pageToken = result.nextPageToken;
+      if (!pageToken) break;
+    }
+  }
+
+  return summary;
+}
+
+export function normalizeOrder(order: TikTokOrderSummary) {
+  return {
+    externalId: typeof order.id === "string" ? order.id : String(order.id ?? ""),
+    status: typeof order.status === "string" && order.status
+      ? order.status.toLowerCase()
+      : "unknown",
+    totalCents: moneyToCents(order.payment?.total_amount ?? 0),
+    currency: typeof order.payment?.currency === "string" ? order.payment.currency : undefined,
+    createTime: typeof order.create_time === "number" ? order.create_time : undefined,
+    updateTime: typeof order.update_time === "number" ? order.update_time : undefined,
+  };
+}
+
+function shouldRefresh(accessTokenExpiresAt?: number) {
+  if (!accessTokenExpiresAt) return false;
+  return accessTokenExpiresAt <= Math.floor(Date.now() / 1000) + 5 * 60;
+}
+
+function assertOrderScope(scopes?: string[]) {
+  if (!scopes || scopes.length === 0) return;
+  if (
+    scopes.includes("seller.order.info") ||
+    scopes.includes("seller.fs.order&fufillment.management")
+  ) return;
+
+  throw new Error("O token TikTok não possui o scope seller.order.info necessário para sincronizar pedidos.");
+}
