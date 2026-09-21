@@ -118,3 +118,11 @@ th { color: var(--muted); font-weight: 600; }
 .muted-copy { color: var(--muted); line-height: 1.5; }
 .test-result { margin-top: 14px; display: grid; gap: 8px; }
 .test-result pre { margin: 0; max-height: 360px; overflow: auto; background: #0e1115; border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+
+
+.integration-meta { display: grid; gap: 8px; margin-top: 12px; }
+.shop-line { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.shop-line span { color: var(--muted); text-align: right; }
+.integration-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.action-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; margin-top: 14px; }
+.danger-button { border: 1px solid #6b2a32; border-radius: 8px; padding: 8px 10px; background: #261216; color: #ffb4bc; font-weight: 700; cursor: pointer; }
