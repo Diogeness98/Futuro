@@ -14,9 +14,11 @@ export default async function IntegrationsPage() {
     {
       name: "Jev",
       provider: "jev",
-      purpose: "Decisão, classificação e score de baixo custo.",
+      purpose: "Decisão, classificação e score de baixo custo via System One.",
       configured: aiConfig.jev.mode !== "mock" && Boolean(aiConfig.jev.apiKey && aiConfig.jev.apiUrl),
-      detail: aiConfig.jev.mode === "mock" ? "Modo mock seguro" : "API configurada",
+      detail: aiConfig.jev.mode === "mock"
+        ? `Modo mock seguro · ${aiConfig.jev.model}`
+        : `System One · ${aiConfig.jev.model}`,
     },
     {
       name: "OpenAI",
