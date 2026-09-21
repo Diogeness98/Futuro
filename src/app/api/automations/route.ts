@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
+import { buildAutomationAction } from "@/lib/automation/config";
 
 const automationSchema = z.object({
   name: z.string().trim().min(1).max(160),
   triggerType: z.enum(["order.created", "product.low_stock", "manual"]),
   actionType: z.enum(["jev.decide", "gpt.generate", "manual.review"]),
+  actionInstruction: z.string().trim().max(2_000).optional().or(z.literal("")),
+  jevOptions: z.string().trim().max(2_000).optional().or(z.literal("")),
   enabled: z.union([z.string(), z.boolean()]).optional(),
 });
 
@@ -31,14 +35,19 @@ export async function POST(request: Request) {
   try {
     const input = automationSchema.parse(await bodyFromRequest(request));
     const enabled = input.enabled === true || input.enabled === "true" || input.enabled === "on";
+    const action = buildAutomationAction({
+      type: input.actionType,
+      instruction: input.actionInstruction,
+      optionsText: input.jevOptions,
+    });
 
     const automation = await db.automation.create({
       data: {
         organizationId: session.organizationId,
         name: input.name,
         enabled,
-        trigger: { type: input.triggerType },
-        action: { type: input.actionType },
+        trigger: toJson({ type: input.triggerType }),
+        action: toJson(action),
       },
     });
 
@@ -48,16 +57,25 @@ export async function POST(request: Request) {
       action: "automation.created",
       entityType: "Automation",
       entityId: automation.id,
-      metadata: { name: automation.name, enabled },
+      metadata: {
+        name: automation.name,
+        enabled,
+        triggerType: input.triggerType,
+        actionType: input.actionType,
+      },
     });
 
     if ((request.headers.get("content-type") ?? "").includes("application/json")) {
       return NextResponse.json({ automation }, { status: 201 });
     }
 
-    return NextResponse.redirect(new URL("/automations", request.url), 303);
+    return NextResponse.redirect(new URL("/automations?created=1", request.url), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao criar automação.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
+}
+
+function toJson(value: unknown) {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
