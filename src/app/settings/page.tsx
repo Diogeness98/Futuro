@@ -30,7 +30,11 @@ export default async function SettingsPage() {
             <div><dt>Jev automático</dt><dd>{Math.round(aiConfig.jev.autoExecuteThreshold * 100)}%+</dd></div>
             <div><dt>Zona GPT</dt><dd>{Math.round(aiConfig.jev.gptReviewThreshold * 100)}%–{Math.round(aiConfig.jev.autoExecuteThreshold * 100) - 1}%</dd></div>
             <div><dt>Modelo econômico</dt><dd>{aiConfig.openai.defaultModel}</dd></div>
+            <div><dt>Raciocínio econômico</dt><dd>{aiConfig.openai.defaultReasoningEffort}</dd></div>
+            <div><dt>Saída econômica</dt><dd>{aiConfig.openai.defaultMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
             <div><dt>Modelo forte</dt><dd>{aiConfig.openai.escalationModel}</dd></div>
+            <div><dt>Raciocínio forte</dt><dd>{aiConfig.openai.escalationReasoningEffort}</dd></div>
+            <div><dt>Saída forte</dt><dd>{aiConfig.openai.escalationMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
             <div><dt>Entrada máxima</dt><dd>{aiConfig.openai.maxInputChars.toLocaleString("pt-BR")} caracteres</dd></div>
           </dl>
         </section>
