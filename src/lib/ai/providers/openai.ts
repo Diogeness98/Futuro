@@ -30,7 +30,7 @@ export async function generateWithOpenAI(input: string, model = aiConfig.openai.
       model,
       input,
       store: false,
-      reasoning: { effort: reasoningEffort, mode: "standard" },
+      reasoning: { effort: reasoningEffort },
       max_output_tokens: maxOutputTokens,
     }),
   });
