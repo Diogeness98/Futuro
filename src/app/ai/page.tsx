@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { AiTestForm } from "@/components/ai-test-form";
 import { requireSession } from "@/lib/auth";
 import { getOpenAiBudgetStatus } from "@/lib/ai/budget";
 import { db } from "@/lib/db";
@@ -47,6 +48,10 @@ export default async function AiPage() {
         </div>
         {!budget.allowed && <p className="budget-warning">{budget.reasons.join(" ")}</p>}
       </section>
+
+      <div className="section">
+        <AiTestForm />
+      </div>
 
       <section className="section card table-card">
         <h2>Histórico recente</h2>
