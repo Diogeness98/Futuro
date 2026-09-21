@@ -15,16 +15,40 @@ export async function executeAiTask(task: AiTask): Promise<AiExecutionResult> {
     const options = task.options ?? ["sim", "não"];
     const decision = await decideWithJev({ state: task.input, options });
 
-    if (decision.confidence >= aiConfig.jev.autoExecuteThreshold && aiConfig.jev.mode !== "mock") {
+    // Jev mock nunca pode disparar automação real.
+    if (aiConfig.jev.mode === "mock") {
+      return {
+        provider: "jev",
+        result: decision,
+        confidence: decision.confidence,
+        manualReview: true,
+      };
+    }
+
+    // Faixa 1: confiança alta. Jev resolve sozinho e economiza GPT.
+    if (decision.confidence >= aiConfig.jev.autoExecuteThreshold) {
       return { provider: "jev", result: decision, confidence: decision.confidence };
     }
 
+    // Faixa 3: confiança baixa. Não gastamos GPT automaticamente:
+    // enviamos para revisão humana/filas futuras.
+    if (decision.confidence < aiConfig.jev.gptReviewThreshold) {
+      return {
+        provider: "jev",
+        result: decision,
+        confidence: decision.confidence,
+        manualReview: true,
+      };
+    }
+
+    // Faixa 2: somente a zona cinzenta usa o GPT econômico como revisor.
     const reviewPrompt = [
-      "Você é o revisor de baixo custo do roteador Futuro.",
+      "Você é o revisor econômico do roteador Futuro.",
+      "Escolha estritamente uma das opções permitidas.",
       `Tarefa: ${task.input}`,
       `Opções permitidas: ${options.join(", ")}`,
       `Jev escolheu: ${decision.decision} com confiança ${decision.confidence}.`,
-      "Responda de forma curta indicando a opção mais adequada e uma justificativa de uma frase.",
+      "Responda com a opção escolhida e uma justificativa de uma frase.",
     ].join("\n");
 
     const reviewed = await generateWithOpenAI(reviewPrompt, aiConfig.openai.defaultModel);
