@@ -2,13 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main, "phase-0-foundation"]
+    branches: [main, "phase-0-foundation", "phase-1-core"]
   pull_request:
     branches: [main]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://user:password@localhost:5432/futuro"
+      AUTH_SECRET: "ci-only-secret-value-with-at-least-32-characters"
+      JEV_MODE: mock
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,5 +22,3 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-        env:
-          JEV_MODE: mock

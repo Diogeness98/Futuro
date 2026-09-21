@@ -1,0 +1,32 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
+
+export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  const orders = await db.order.findMany({ where: { organizationId: session.organizationId }, include: { customer: true, items: true }, orderBy: { createdAt: "desc" } });
+  return NextResponse.json({ orders });
+}
+
+export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  try {
+    const raw = await bodyFromRequest(request);
+    const input = z.object({ customerId: z.string().optional(), status: z.string().trim().max(40).optional(), total: z.any().optional(), totalCents: z.any().optional(), channel: z.string().trim().max(40).optional() }).parse(raw);
+    if (input.customerId) {
+      const customer = await db.customer.findFirst({ where: { id: input.customerId, organizationId: session.organizationId } });
+      if (!customer) return NextResponse.json({ error: "Cliente inválido." }, { status: 400 });
+    }
+    const totalCents = input.totalCents !== undefined ? Math.max(0, integer(input.totalCents)) : moneyToCents(input.total);
+    const order = await db.order.create({ data: { organizationId: session.organizationId, customerId: input.customerId || null, status: input.status || "pending", channel: input.channel || "manual", totalCents } });
+    if ((request.headers.get("content-type") ?? "").includes("application/json")) return NextResponse.json({ order }, { status: 201 });
+    return NextResponse.redirect(new URL("/orders", request.url), 303);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao criar pedido.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
