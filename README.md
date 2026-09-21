@@ -1,55 +1,186 @@
 # Futuro
 
-SaaS de operações e automação construído para usar IA de forma econômica por padrão.
+SaaS de operações, e-commerce e automação construído para usar IA de forma econômica por padrão.
 
-## Estratégia de IA
+## Estratégia central
 
 **Código → Jev → GPT → Work**
 
-- Código determinístico resolve regras previsíveis sem custo de IA.
+- Código determinístico resolve regras previsíveis sem IA.
 - Jev recebe decisões estruturadas, classificação e score.
-- OpenAI entra em geração, interpretação e raciocínio.
-- Work é último recurso para fluxos externos longos ou imprevisíveis.
+- GPT entra em geração/raciocínio e na zona cinzenta do Jev.
+- Work fica reservado para fluxos externos longos ou imprevisíveis.
 
-## Fase atual
+O roteador usa, por padrão:
 
-**Fase 0 — fundação.** Já inclui:
+- Jev >= 92% de confiança: resolve sem GPT.
+- Jev entre 75% e 91,9%: GPT econômico revisa usando Structured Outputs.
+- Jev abaixo de 75%: revisão manual.
+- Falha do Jev: revisão manual por padrão; não dispara GPT automaticamente.
+- GPT possui disjuntor de orçamento móvel de 24 horas.
 
-- Next.js + TypeScript;
-- dashboard inicial responsivo;
-- endpoint `/api/health`;
-- roteador econômico em `/api/ai/route`;
-- adapter OpenAI via Responses API;
-- adapter Jev isolado com modo mock seguro;
-- schema PostgreSQL/Prisma para organizações, produtos, clientes, pedidos, integrações, automações, decisões de IA e logs;
-- testes unitários da política de roteamento;
-- CI básico.
+## Estado atual
 
-## Começar
+O repositório já contém:
+
+- Next.js + TypeScript + PostgreSQL + Prisma;
+- cadastro, login, logout e organizações;
+- dashboard;
+- CRUD de produtos, clientes e pedidos;
+- logs/auditoria;
+- Jev System One real, com modo mock seguro;
+- OpenAI Responses API;
+- orçamento e timeouts por provedor;
+- histórico de decisões e consumo de tokens;
+- automações configuráveis, testáveis e auditadas;
+- TikTok Shop OAuth;
+- assinatura HMAC-SHA256 das chamadas TikTok;
+- tokens TikTok criptografados com AES-256-GCM;
+- Get Authorized Shops;
+- refresh token;
+- sincronização incremental de pedidos TikTok;
+- proteção contra edição manual de pedidos sincronizados;
+- testes unitários e CI com typecheck, testes e build.
+
+## Desenvolvimento local
+
+Requisitos:
+
+- Node.js 22+
+- PostgreSQL
+
+Instalação:
 
 ```bash
 cp .env.example .env.local
 npm install
+npm run db:push
 npm run dev
 ```
 
-Teste o planejamento sem gastar API:
+Abra:
 
-```bash
-curl -X POST http://localhost:3000/api/ai/route \
-  -H 'content-type: application/json' \
-  -d '{"input":"classifique este pedido","options":["normal","revisar"],"dryRun":true}'
+```text
+http://localhost:3000
 ```
 
-## Segredos
+## Validação antes de deploy
 
-Nunca faça commit de `OPENAI_API_KEY` ou `JEV_API_KEY`. Configure as chaves somente nas variáveis de ambiente do servidor/deploy.
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
-## Próximas fases
+Os três comandos devem passar antes de um deploy.
 
-1. autenticação e persistência real;
-2. CRUD de produtos/clientes/pedidos;
-3. Jev real após confirmar endpoint da conta;
-4. OpenAI real com chave existente;
-5. TikTok Shop e automações;
-6. testes end-to-end e deploy.
+## Variáveis de ambiente
+
+Use `.env.example` como referência.
+
+As variáveis mais importantes são:
+
+```env
+AUTH_SECRET=
+DATABASE_URL=
+INTEGRATION_ENCRYPTION_KEY=
+
+OPENAI_API_KEY=
+
+JEV_MODE=mock
+JEV_API_KEY=
+JEV_API_URL=https://api.typesafe.ai/v1/systemone
+JEV_MODEL=jev-latest
+
+TIKTOK_SHOP_APP_KEY=
+TIKTOK_SHOP_APP_SECRET=
+TIKTOK_SHOP_AUTH_URL=
+```
+
+### Secrets
+
+Nunca faça commit de:
+
+- `AUTH_SECRET`
+- `OPENAI_API_KEY`
+- `JEV_API_KEY`
+- `TIKTOK_SHOP_APP_SECRET`
+- `INTEGRATION_ENCRYPTION_KEY`
+- access tokens / refresh tokens
+
+Todos devem existir apenas no ambiente do servidor/deploy.
+
+`INTEGRATION_ENCRYPTION_KEY` deve ser uma chave aleatória de 32 bytes codificada em Base64.
+
+## Ativando Jev real
+
+Depois de inserir a chave como secret:
+
+```env
+JEV_MODE=live
+```
+
+O painel **IA** possui uma ferramenta de teste que não expõe a chave ao navegador.
+
+## TikTok Shop
+
+Depois de configurar App Key, App Secret, Seller Authorization Link e a chave de criptografia:
+
+1. entre em **Integrações**;
+2. clique em **Conectar TikTok Shop**;
+3. conclua a autorização de seller;
+4. confirme as lojas autorizadas;
+5. use **Sincronizar pedidos**.
+
+Pedidos importados usam o canal `tiktok_shop` e são somente leitura no Futuro; atualizações devem vir da integração.
+
+Para desenvolvimento, valide primeiro com uma Development/Test Shop.
+
+## Automações
+
+A página **Automações** permite:
+
+- escolher gatilho;
+- selecionar Jev, GPT ou revisão humana;
+- definir instrução;
+- definir opções permitidas para Jev;
+- ativar/desativar;
+- executar um teste manual;
+- visualizar o resultado do provedor na própria tela;
+- excluir regras.
+
+Os testes manuais já usam o mesmo roteador, orçamento e auditoria que serão usados pelos eventos automáticos.
+
+## Emergent
+
+O Emergent não deve reconstruir este projeto.
+
+Leia primeiro:
+
+```text
+docs/EMERGENT_HANDOFF.md
+```
+
+O objetivo do Emergent é importar, configurar infraestrutura/secrets, validar fluxos e fazer deploy com o menor consumo de créditos possível.
+
+## Segurança operacional
+
+- nenhum secret deve usar prefixo `NEXT_PUBLIC_`;
+- tokens TikTok são criptografados antes de ir ao banco;
+- decisões mock nunca executam automaticamente;
+- GPT é bloqueado ao atingir o orçamento configurado;
+- pedidos sincronizados não podem ser editados/excluídos manualmente;
+- chamadas externas possuem timeout;
+- falhas de provedor são enviadas para revisão segura.
+
+## Próximo marco
+
+Validar com credenciais reais em ambiente de teste:
+
+1. PostgreSQL;
+2. Jev;
+3. OpenAI;
+4. TikTok Shop Development/Test Shop;
+5. automações manuais;
+6. sincronização de pedidos;
+7. deploy de produção.
