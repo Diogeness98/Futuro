@@ -48,6 +48,7 @@ export async function decideWithJev(input: JevInput): Promise<JevDecision> {
         },
       },
     }),
+    signal: AbortSignal.timeout(aiConfig.jev.timeoutMs),
   });
 
   if (!response.ok) {
