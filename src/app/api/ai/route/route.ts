@@ -10,9 +10,23 @@ import { db } from "@/lib/db";
 const taskSchema = z.object({
   input: z.string().min(1).max(20_000),
   taskType: z.enum(["deterministic", "decision", "generation", "complex"]).optional(),
-  options: z.array(z.string().min(1)).min(1).max(30).optional(),
+  options: z.array(z.string().min(1)).min(2).max(255).optional(),
+  decisionInstructions: z.string().min(1).max(2_000).optional(),
+  criteria: z.record(z.string().min(1), z.string().min(1).max(2_000)).optional(),
   requiresExternalInteraction: z.boolean().optional(),
   dryRun: z.boolean().optional().default(false),
+}).superRefine((value, ctx) => {
+  if (!value.criteria || !value.options) return;
+  const allowed = new Set(value.options);
+  for (const key of Object.keys(value.criteria)) {
+    if (!allowed.has(key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["criteria", key],
+        message: "Todo critério precisa corresponder a uma opção permitida.",
+      });
+    }
+  }
 });
 
 export async function POST(request: Request) {
