@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
+import { recordActivity } from "@/lib/activity";
 
 export async function GET() {
   const session = await getSession();
@@ -17,8 +18,18 @@ export async function POST(request: Request) {
   try {
     const raw = await bodyFromRequest(request);
     const input = z.object({ name: z.string().trim().min(1).max(160), sku: z.string().trim().max(80).optional().or(z.literal("")), price: z.any().optional(), priceCents: z.any().optional(), stock: z.any().optional() }).parse(raw);
-    const priceCents = input.priceCents !== undefined ? integer(input.priceCents) : moneyToCents(input.price);
+    const priceCents = input.priceCents !== undefined ? Math.max(0, integer(input.priceCents)) : moneyToCents(input.price);
     const product = await db.product.create({ data: { organizationId: session.organizationId, name: input.name, sku: input.sku || null, priceCents, stock: Math.max(0, integer(input.stock)) } });
+
+    await recordActivity({
+      organizationId: session.organizationId,
+      actorId: session.userId,
+      action: "product.created",
+      entityType: "Product",
+      entityId: product.id,
+      metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
+    });
+
     if ((request.headers.get("content-type") ?? "").includes("application/json")) return NextResponse.json({ product }, { status: 201 });
     return NextResponse.redirect(new URL("/products", request.url), 303);
   } catch (error) {
