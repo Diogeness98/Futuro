@@ -35,7 +35,10 @@ export default async function SettingsPage() {
             <div><dt>Modelo forte</dt><dd>{aiConfig.openai.escalationModel}</dd></div>
             <div><dt>Raciocínio forte</dt><dd>{aiConfig.openai.escalationReasoningEffort}</dd></div>
             <div><dt>Saída forte</dt><dd>{aiConfig.openai.escalationMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
-            <div><dt>Entrada máxima</dt><dd>{aiConfig.openai.maxInputChars.toLocaleString("pt-BR")} caracteres</dd></div>
+            <div><dt>Entrada máxima por tarefa</dt><dd>{aiConfig.openai.maxInputChars.toLocaleString("pt-BR")} caracteres</dd></div>
+            <div><dt>Chamadas / 24h</dt><dd>{aiConfig.openai.maxCallsPer24h.toLocaleString("pt-BR")}</dd></div>
+            <div><dt>Entrada / 24h</dt><dd>{aiConfig.openai.maxInputTokensPer24h.toLocaleString("pt-BR")} tokens</dd></div>
+            <div><dt>Saída / 24h</dt><dd>{aiConfig.openai.maxOutputTokensPer24h.toLocaleString("pt-BR")} tokens</dd></div>
           </dl>
         </section>
       </div>
