@@ -1,51 +1,47 @@
-const navigation = ["Dashboard", "Pedidos", "Produtos", "Clientes", "Automações", "IA", "Integrações", "Logs", "Configurações"];
+import { AppShell } from "@/components/app-shell";
+import { requireSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const session = await requireSession();
+  const organizationId = session.organizationId;
+
+  const [orders, products, customers, automations] = await Promise.all([
+    db.order.count({ where: { organizationId } }),
+    db.product.count({ where: { organizationId } }),
+    db.customer.count({ where: { organizationId } }),
+    db.automation.count({ where: { organizationId, enabled: true } }),
+  ]);
+
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">Futuro<span>.</span></div>
-        <nav className="nav">
-          {navigation.map((item) => <a href="#" key={item}>{item}</a>)}
-        </nav>
-      </aside>
-
-      <main className="main">
-        <div className="eyebrow">Fase 0 · Fundação</div>
-        <h1>Operação com IA econômica por padrão</h1>
-        <p className="lead">
-          O Futuro prioriza código determinístico, usa Jev para decisões estruturadas e aciona GPT somente quando geração ou raciocínio são realmente necessários.
-        </p>
-
-        <div className="grid">
-          <Metric label="Pedidos" value="—" />
-          <Metric label="Produtos" value="—" />
-          <Metric label="Clientes" value="—" />
-          <Metric label="Automações ativas" value="—" />
+    <AppShell active="Dashboard" email={session.email}>
+      <div className="eyebrow">Operação</div>
+      <h1>Dashboard</h1>
+      <p className="lead">Núcleo operacional com isolamento por organização e roteamento econômico de IA.</p>
+      <div className="grid">
+        <Metric label="Pedidos" value={String(orders)} />
+        <Metric label="Produtos" value={String(products)} />
+        <Metric label="Clientes" value={String(customers)} />
+        <Metric label="Automações ativas" value={String(automations)} />
+      </div>
+      <section className="section" id="ai">
+        <h2>Política de IA</h2>
+        <div className="flow">
+          <Step title="1. Código" text="Regras e cálculos determinísticos." />
+          <Step title="2. Jev" text="Classificação, score e decisões estruturadas." />
+          <Step title="3. GPT" text="Geração e raciocínio quando necessário." />
+          <Step title="4. Work" text="Último recurso para execução externa complexa." />
         </div>
-
-        <section className="section">
-          <h2>Política de roteamento</h2>
-          <div className="flow">
-            <Step title="1. Código" text="Regras determinísticas e validações sem custo de IA." />
-            <Step title="2. Jev" text="Choice, score, classificação e decisões com confiança." />
-            <Step title="3. GPT" text="Geração, interpretação e raciocínio quando Jev não basta." />
-            <Step title="4. Work" text="Último recurso para ações externas longas ou imprevisíveis." />
-          </div>
-        </section>
-
-        <section className="section">
-          <span className="badge"><span className="dot" /> base pronta para OpenAI, Jev, banco e automações</span>
-        </section>
-      </main>
-    </div>
+      </section>
+    </AppShell>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="card"><small>{label}</small><div className="metric">{value}</div></div>;
 }
-
 function Step({ title, text }: { title: string; text: string }) {
   return <div className="step"><strong>{title}</strong><p>{text}</p></div>;
 }
