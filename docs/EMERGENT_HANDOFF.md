@@ -67,7 +67,12 @@ OPENAI_DEFAULT_REASONING_EFFORT=low
 OPENAI_ESCALATION_REASONING_EFFORT=medium
 OPENAI_DEFAULT_MAX_OUTPUT_TOKENS=1600
 OPENAI_ESCALATION_MAX_OUTPUT_TOKENS=6000
+OPENAI_MAX_CALLS_PER_24H=100
+OPENAI_MAX_INPUT_TOKENS_PER_24H=200000
+OPENAI_MAX_OUTPUT_TOKENS_PER_24H=40000
 ```
+
+Esses limites funcionam como disjuntor de orçamento. Ao atingir qualquer teto, novas chamadas ao GPT são bloqueadas e o fluxo segue para revisão manual em vez de continuar consumindo a API.
 
 ### Jev
 
