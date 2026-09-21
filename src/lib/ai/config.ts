@@ -1,6 +1,14 @@
+type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+
 function numberFromEnv(name: string, fallback: number) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function effortFromEnv(name: string, fallback: ReasoningEffort): ReasoningEffort {
+  const value = process.env[name];
+  const allowed: ReasoningEffort[] = ["none", "low", "medium", "high", "xhigh", "max"];
+  return allowed.includes(value as ReasoningEffort) ? (value as ReasoningEffort) : fallback;
 }
 
 export const aiConfig = {
@@ -9,6 +17,10 @@ export const aiConfig = {
     defaultModel: process.env.OPENAI_DEFAULT_MODEL ?? "gpt-5.6-luna",
     escalationModel: process.env.OPENAI_ESCALATION_MODEL ?? "gpt-5.6-sol",
     maxInputChars: numberFromEnv("OPENAI_MAX_INPUT_CHARS", 12_000),
+    defaultReasoningEffort: effortFromEnv("OPENAI_DEFAULT_REASONING_EFFORT", "low"),
+    escalationReasoningEffort: effortFromEnv("OPENAI_ESCALATION_REASONING_EFFORT", "medium"),
+    defaultMaxOutputTokens: numberFromEnv("OPENAI_DEFAULT_MAX_OUTPUT_TOKENS", 1_600),
+    escalationMaxOutputTokens: numberFromEnv("OPENAI_ESCALATION_MAX_OUTPUT_TOKENS", 6_000),
   },
   jev: {
     mode: process.env.JEV_MODE ?? "mock",
