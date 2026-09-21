@@ -19,7 +19,7 @@ O repositório `Diogeness98/Futuro` é a fonte de verdade.
 - PostgreSQL
 - Prisma
 - autenticação própria com cookie HTTP-only/JWT
-- Jev adapter isolado
+- Jev System One adapter
 - OpenAI Responses API
 - GitHub Actions para typecheck, testes e build
 
@@ -72,21 +72,44 @@ OPENAI_MAX_INPUT_TOKENS_PER_24H=200000
 OPENAI_MAX_OUTPUT_TOKENS_PER_24H=40000
 ```
 
-Esses limites funcionam como disjuntor de orçamento. Ao atingir qualquer teto, novas chamadas ao GPT são bloqueadas e o fluxo segue para revisão manual em vez de continuar consumindo a API.
+Esses limites funcionam como disjuntor de orçamento. Ao atingir qualquer teto, novas chamadas ao GPT são bloqueadas e o fluxo segue para revisão manual.
 
-### Jev
+### Jev / TypeSafe AI
 
-Manter inicialmente:
+Contrato verificado:
+
+```text
+POST https://api.typesafe.ai/v1/systemone
+Authorization: Bearer <server-side-key>
+Content-Type: application/json
+```
+
+Configuração:
 
 ```env
 JEV_MODE=mock
 JEV_API_KEY=
-JEV_API_URL=
+JEV_API_URL=https://api.typesafe.ai/v1/systemone
+JEV_MODEL=jev-latest
 JEV_AUTO_EXECUTE_THRESHOLD=0.92
 JEV_GPT_REVIEW_THRESHOLD=0.75
 ```
 
-Mudar `JEV_MODE` somente depois de confirmar o contrato real da API da conta TypeSafe.
+Após inserir a chave como secret no ambiente, alterar:
+
+```env
+JEV_MODE=live
+```
+
+Nunca versionar a chave.
+
+O adapter do projeto usa Choice com:
+- `state`
+- `questions.decision.type=choice`
+- `instructions`
+- `criteria`
+
+A resposta esperada é lida de `answers.decision`, incluindo `choice`, `probabilities` e `confidence`.
 
 ## Segurança
 
@@ -104,9 +127,9 @@ A tarefa só é considerada concluída quando:
 - login funciona;
 - logout funciona;
 - dashboard abre;
-- produtos podem ser criados;
-- clientes podem ser criados;
-- pedidos podem ser criados;
+- produtos podem ser criados, editados e excluídos;
+- clientes podem ser criados, editados e excluídos;
+- pedidos podem ser criados, editados e excluídos;
 - página de Automações abre;
 - página de IA abre;
 - página de Integrações abre;
@@ -134,12 +157,13 @@ A tarefa só é considerada concluída quando:
 
 Somente após todos os critérios acima passarem:
 
-1. testar OpenAI com a chave real;
-2. integrar Jev real;
-3. testar roteamento Jev → GPT;
-4. integrar TikTok Shop;
-5. implementar automações reais;
-6. testes ponta a ponta;
-7. deploy de produção.
+1. configurar OpenAI com a chave real;
+2. configurar Jev com a chave real e `JEV_MODE=live`;
+3. testar o painel de decisão Jev;
+4. testar roteamento Jev → GPT;
+5. integrar TikTok Shop;
+6. implementar automações reais;
+7. testes ponta a ponta;
+8. deploy de produção.
 
 Após cada etapa bem-sucedida, parar e salvar um checkpoint no GitHub.
