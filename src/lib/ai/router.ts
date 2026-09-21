@@ -1,7 +1,7 @@
 import { aiConfig } from "./config";
 import { routeTask } from "./policy";
 import { decideWithJev } from "./providers/jev";
-import { generateWithOpenAI } from "./providers/openai";
+import { generateWithOpenAI, reviewDecisionWithOpenAI } from "./providers/openai";
 import type { AiExecutionResult, AiTask, JevDecision, ProviderUsage } from "./types";
 
 interface AiExecutionOptions {
@@ -33,10 +33,17 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
 
       if (aiConfig.jev.fallbackToGptOnError && allowOpenAI) {
         try {
-          const fallback = await generateWithOpenAI(buildDecisionFallbackPrompt(task, taskOptions, message), aiConfig.openai.defaultModel);
+          const fallback = await reviewDecisionWithOpenAI(
+            buildDecisionFallbackPrompt(task, taskOptions, message),
+            taskOptions,
+            aiConfig.openai.defaultModel,
+          );
           return {
             provider: "openai",
-            result: fallback.text,
+            result: {
+              ...fallback.decision,
+              source: "jev_error_fallback",
+            },
             usage: fallback.usage,
             escalated: true,
             manualReview: false,
@@ -114,19 +121,29 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
 
     const reviewPrompt = [
       "Você é o revisor econômico do roteador Futuro.",
-      "Escolha estritamente uma das opções permitidas.",
+      "Revise a decisão abaixo e selecione exatamente uma opção permitida.",
       `Tarefa: ${task.input}`,
       task.decisionInstructions ? `Critério da decisão: ${task.decisionInstructions}` : "",
+      task.criteria ? `Critérios das opções: ${JSON.stringify(task.criteria)}` : "",
       `Opções permitidas: ${taskOptions.join(", ")}`,
       `Jev escolheu: ${decision.decision} com confiança ${decision.confidence}.`,
-      "Responda com a opção escolhida e uma justificativa de uma frase.",
+      "Use a justificativa somente para auditoria e mantenha-a curta.",
     ].filter(Boolean).join("\n");
 
     try {
-      const reviewed = await generateWithOpenAI(reviewPrompt, aiConfig.openai.defaultModel);
+      const reviewed = await reviewDecisionWithOpenAI(
+        reviewPrompt,
+        taskOptions,
+        aiConfig.openai.defaultModel,
+      );
       return {
         provider: "openai",
-        result: reviewed.text,
+        result: {
+          ...reviewed.decision,
+          source: "jev_review",
+          jevDecision: decision.decision,
+          jevConfidence: decision.confidence,
+        },
         usage: reviewed.usage,
         escalated: true,
         confidence: decision.confidence,
@@ -197,9 +214,9 @@ function buildDecisionFallbackPrompt(task: AiTask, options: string[], jevError: 
     "Jev está indisponível. Faça somente a decisão estruturada necessária.",
     `Estado: ${task.input}`,
     task.decisionInstructions ? `Pergunta: ${task.decisionInstructions}` : "",
+    task.criteria ? `Critérios: ${JSON.stringify(task.criteria)}` : "",
     `Opções permitidas: ${options.join(", ")}`,
     `Falha do Jev: ${jevError}`,
-    "Responda de forma curta com uma opção permitida e uma justificativa de uma frase.",
   ].filter(Boolean).join("\n");
 }
 
