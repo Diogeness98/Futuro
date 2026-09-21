@@ -28,6 +28,25 @@ export interface TikTokAuthorizedShop {
   seller_type?: string;
 }
 
+export interface TikTokOrderSummary {
+  id: string;
+  status?: string;
+  create_time?: number;
+  update_time?: number;
+  payment?: {
+    currency?: string;
+    total_amount?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface TikTokOrderSearchResult {
+  orders: TikTokOrderSummary[];
+  nextPageToken?: string;
+  totalCount?: number;
+}
+
 export async function tikTokShopRequest<T>(input: TikTokRequestInput): Promise<T> {
   requireTikTokAppCredentials();
 
@@ -85,4 +104,38 @@ export async function getTikTokAuthorizedShops(accessToken: string) {
   });
 
   return data.shops ?? [];
+}
+
+export async function searchTikTokOrders(
+  accessToken: string,
+  shopCipher: string,
+  options: {
+    updateTimeGe?: number;
+    pageToken?: string;
+    pageSize?: number;
+  } = {},
+): Promise<TikTokOrderSearchResult> {
+  const data = await tikTokShopRequest<{
+    orders?: TikTokOrderSummary[];
+    next_page_token?: string;
+    total_count?: number;
+  }>({
+    method: "POST",
+    path: "/order/202309/orders/search",
+    accessToken,
+    shopCipher,
+    query: {
+      page_size: Math.min(100, Math.max(1, options.pageSize ?? 100)),
+      page_token: options.pageToken,
+      sort_field: "update_time",
+      sort_order: "ASC",
+    },
+    body: options.updateTimeGe ? { update_time_ge: options.updateTimeGe } : {},
+  });
+
+  return {
+    orders: Array.isArray(data.orders) ? data.orders : [],
+    nextPageToken: typeof data.next_page_token === "string" && data.next_page_token ? data.next_page_token : undefined,
+    totalCount: typeof data.total_count === "number" ? data.total_count : undefined,
+  };
 }
