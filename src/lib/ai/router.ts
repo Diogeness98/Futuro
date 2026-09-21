@@ -19,7 +19,12 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
 
   if (route.provider === "jev") {
     const taskOptions = task.options ?? ["sim", "não"];
-    const decision = await decideWithJev({ state: task.input, options: taskOptions });
+    const decision = await decideWithJev({
+      state: task.input,
+      options: taskOptions,
+      instructions: task.decisionInstructions,
+      criteria: task.criteria,
+    });
 
     if (aiConfig.jev.mode === "mock") {
       return {
@@ -60,10 +65,11 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
       "Você é o revisor econômico do roteador Futuro.",
       "Escolha estritamente uma das opções permitidas.",
       `Tarefa: ${task.input}`,
+      task.decisionInstructions ? `Critério da decisão: ${task.decisionInstructions}` : "",
       `Opções permitidas: ${taskOptions.join(", ")}`,
       `Jev escolheu: ${decision.decision} com confiança ${decision.confidence}.`,
       "Responda com a opção escolhida e uma justificativa de uma frase.",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
 
     const reviewed = await generateWithOpenAI(reviewPrompt, aiConfig.openai.defaultModel);
     return {
