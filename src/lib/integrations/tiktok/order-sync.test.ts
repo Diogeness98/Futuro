@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOrder } from "./order-sync";
+import { normalizeTikTokOrder } from "./order-normalize";
 
-describe("normalizeOrder", () => {
+describe("normalizeTikTokOrder", () => {
   it("normaliza id, status e valor", () => {
-    const result = normalizeOrder({
+    const result = normalizeTikTokOrder({
       id: "576461413038785752",
       status: "AWAITING_SHIPMENT",
       payment: {
@@ -21,7 +21,7 @@ describe("normalizeOrder", () => {
   });
 
   it("mantém valor zero quando payment não existe", () => {
-    const result = normalizeOrder({ id: "1", status: "UNPAID" });
+    const result = normalizeTikTokOrder({ id: "1", status: "UNPAID" });
     expect(result.totalCents).toBe(0);
     expect(result.status).toBe("unpaid");
   });
