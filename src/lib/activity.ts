@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
 interface ActivityInput {
@@ -6,7 +7,7 @@ interface ActivityInput {
   action: string;
   entityType?: string | null;
   entityId?: string | null;
-  metadata?: Record<string, string | number | boolean | null>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export async function recordActivity(input: ActivityInput) {
