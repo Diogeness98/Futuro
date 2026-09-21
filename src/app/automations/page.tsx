@@ -56,7 +56,7 @@ export default async function AutomationsPage() {
         <section className="card table-card">
           <h2>Fluxos cadastrados</h2>
           <table>
-            <thead><tr><th>Nome</th><th>Gatilho</th><th>Ação</th><th>Status</th><th>Teste</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Gatilho</th><th>Ação</th><th>Status</th><th>Teste</th><th>Gestão</th></tr></thead>
             <tbody>
               {automations.map((automation) => (
                 <tr key={automation.id}>
@@ -79,8 +79,20 @@ export default async function AutomationsPage() {
                         </form>
                       </details>
                     ) : (
-                      <span className="readonly-note">Ative ao criar para testar</span>
+                      <span className="readonly-note">Ative para testar</span>
                     )}
+                  </td>
+                  <td>
+                    <div className="automation-manage">
+                      <form action={`/api/automations/${automation.id}`} method="post">
+                        <input type="hidden" name="intent" value="toggle" />
+                        <button className="secondary" type="submit">{automation.enabled ? "Desativar" : "Ativar"}</button>
+                      </form>
+                      <form action={`/api/automations/${automation.id}`} method="post">
+                        <input type="hidden" name="intent" value="delete" />
+                        <button className="danger-button" type="submit">Excluir</button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
