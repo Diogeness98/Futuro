@@ -42,14 +42,22 @@ export default async function OrdersPage() {
         <section className="card table-card">
           <h2>Pedidos recentes</h2>
           <table>
-            <thead><tr><th>Cliente</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Canal</th><th>Cliente / ID</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead>
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td>{order.customer?.name ?? "—"}</td>
-                  <td>{order.status}</td>
+                  <td><span className={order.channel === "tiktok_shop" ? "status ok" : "status"}>{channelLabel(order.channel)}</span></td>
+                  <td>{order.customer?.name ?? order.externalId ?? "—"}</td>
+                  <td>{formatStatus(order.status)}</td>
                   <td>{formatMoney(order.totalCents)}</td>
-                  <td><OrderActions id={order.id} status={order.status} totalCents={order.totalCents} /></td>
+                  <td>
+                    <OrderActions
+                      id={order.id}
+                      status={order.status}
+                      totalCents={order.totalCents}
+                      channel={order.channel}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -63,4 +71,14 @@ export default async function OrdersPage() {
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+}
+
+function channelLabel(channel: string) {
+  if (channel === "tiktok_shop") return "TikTok Shop";
+  if (channel === "manual") return "Manual";
+  return channel;
+}
+
+function formatStatus(status: string) {
+  return status.replaceAll("_", " ");
 }
