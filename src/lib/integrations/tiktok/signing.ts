@@ -12,7 +12,7 @@ export function signTikTokRequest(input: SignTikTokRequestInput) {
   const cleaned = Object.entries(input.query)
     .filter(([key, value]) => key !== "sign" && key !== "access_token" && value !== undefined && value !== null)
     .map(([key, value]) => [key, String(value)] as const)
-    .sort(([a], [b]) => a.localeCompare(b));
+    .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
 
   let canonical = input.path;
   for (const [key, value] of cleaned) canonical += key + value;
