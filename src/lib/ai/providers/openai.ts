@@ -33,6 +33,7 @@ export async function generateWithOpenAI(input: string, model = aiConfig.openai.
       reasoning: { effort: reasoningEffort },
       max_output_tokens: maxOutputTokens,
     }),
+    signal: AbortSignal.timeout(aiConfig.openai.timeoutMs),
   });
 
   if (!response.ok) {
