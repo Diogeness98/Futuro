@@ -1,3 +1,4 @@
+import { Prisma } from "../../../generated/prisma/client";
 import { decryptJson, encryptJson } from "@/lib/crypto/secrets";
 import { db } from "@/lib/db";
 import type { TikTokAuthorizedShop } from "./client";
@@ -34,6 +35,7 @@ export async function saveTikTokConnection(
     primaryShopCipher: shops[0]?.cipher,
     connectedAt: new Date().toISOString(),
   };
+  const jsonConfig = toJson(config);
 
   return db.integration.upsert({
     where: {
@@ -46,11 +48,11 @@ export async function saveTikTokConnection(
       organizationId,
       provider: PROVIDER,
       status: "connected",
-      config,
+      config: jsonConfig,
     },
     update: {
       status: "connected",
-      config,
+      config: jsonConfig,
     },
   });
 }
@@ -93,13 +95,14 @@ export async function updateTikTokTokens(organizationId: string, tokens: TikTokT
 
   await db.integration.update({
     where: { id: current.integration.id },
-    data: { status: "connected", config },
+    data: { status: "connected", config: toJson(config) },
   });
 
   return config;
 }
 
 export async function disconnectTikTok(organizationId: string) {
+  const config = toJson({ disconnectedAt: new Date().toISOString() });
   await db.integration.upsert({
     where: {
       organizationId_provider: {
@@ -111,11 +114,11 @@ export async function disconnectTikTok(organizationId: string) {
       organizationId,
       provider: PROVIDER,
       status: "not_configured",
-      config: { disconnectedAt: new Date().toISOString() },
+      config,
     },
     update: {
       status: "not_configured",
-      config: { disconnectedAt: new Date().toISOString() },
+      config,
     },
   });
 }
@@ -168,4 +171,8 @@ function parseStoredConfig(value: unknown): TikTokStoredConfig | null {
     connectedAt: typeof config.connectedAt === "string" ? config.connectedAt : "",
     refreshedAt: typeof config.refreshedAt === "string" ? config.refreshedAt : undefined,
   };
+}
+
+function toJson(value: unknown) {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
