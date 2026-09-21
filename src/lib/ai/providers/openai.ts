@@ -2,6 +2,8 @@ import { aiConfig } from "../config";
 import type { ProviderUsage } from "../types";
 
 interface OpenAIResponseBody {
+  status?: string;
+  incomplete_details?: { reason?: string };
   output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
   usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
 }
@@ -9,6 +11,14 @@ interface OpenAIResponseBody {
 export async function generateWithOpenAI(input: string, model = aiConfig.openai.defaultModel): Promise<{ text: string; usage?: ProviderUsage }> {
   if (!aiConfig.openai.apiKey) throw new Error("OPENAI_API_KEY não configurada.");
   if (input.length > aiConfig.openai.maxInputChars) throw new Error(`Entrada excede o limite econômico de ${aiConfig.openai.maxInputChars} caracteres.`);
+
+  const escalated = model === aiConfig.openai.escalationModel;
+  const reasoningEffort = escalated
+    ? aiConfig.openai.escalationReasoningEffort
+    : aiConfig.openai.defaultReasoningEffort;
+  const maxOutputTokens = escalated
+    ? aiConfig.openai.escalationMaxOutputTokens
+    : aiConfig.openai.defaultMaxOutputTokens;
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -20,6 +30,8 @@ export async function generateWithOpenAI(input: string, model = aiConfig.openai.
       model,
       input,
       store: false,
+      reasoning: { effort: reasoningEffort, mode: "standard" },
+      max_output_tokens: maxOutputTokens,
     }),
   });
 
@@ -29,6 +41,10 @@ export async function generateWithOpenAI(input: string, model = aiConfig.openai.
   }
 
   const body = (await response.json()) as OpenAIResponseBody;
+  if (body.status === "incomplete") {
+    throw new Error(`OpenAI interrompeu a resposta pelo limite econômico (${body.incomplete_details?.reason ?? "limite de saída"}).`);
+  }
+
   const text = extractOutputText(body);
   if (!text) throw new Error("OpenAI respondeu sem texto utilizável.");
 
