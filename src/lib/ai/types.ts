@@ -35,5 +35,6 @@ export interface AiExecutionResult {
   confidence?: number;
   usage?: ProviderUsage;
   escalated?: boolean;
+  manualReview?: boolean;
   workRecommended?: boolean;
 }
