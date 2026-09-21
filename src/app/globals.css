@@ -131,3 +131,6 @@ th { color: var(--muted); font-weight: 600; }
 
 .mini-form textarea { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 8px 9px; resize: vertical; }
 .automation-test summary { color: var(--accent); cursor: pointer; font-size: 13px; }
+
+.automation-manage { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.automation-manage .secondary, .automation-manage .danger-button { padding: 6px 8px; font-size: 12px; }
