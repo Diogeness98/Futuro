@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest } from "@/lib/http";
+import { recordActivity } from "@/lib/activity";
 
 export async function GET() {
   const session = await getSession();
@@ -17,6 +18,16 @@ export async function POST(request: Request) {
   try {
     const input = z.object({ name: z.string().trim().min(1).max(160), email: z.string().trim().email().optional().or(z.literal("")), phone: z.string().trim().max(50).optional().or(z.literal("")) }).parse(await bodyFromRequest(request));
     const customer = await db.customer.create({ data: { organizationId: session.organizationId, name: input.name, email: input.email || null, phone: input.phone || null } });
+
+    await recordActivity({
+      organizationId: session.organizationId,
+      actorId: session.userId,
+      action: "customer.created",
+      entityType: "Customer",
+      entityId: customer.id,
+      metadata: { name: customer.name },
+    });
+
     if ((request.headers.get("content-type") ?? "").includes("application/json")) return NextResponse.json({ customer }, { status: 201 });
     return NextResponse.redirect(new URL("/customers", request.url), 303);
   } catch (error) {
