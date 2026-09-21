@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { executeAiTask } from "@/lib/ai/router";
 import { routeTask } from "@/lib/ai/policy";
 import { getSession } from "@/lib/auth";
@@ -29,6 +30,13 @@ export async function POST(request: Request) {
     }
 
     const result = await executeAiTask(task);
+    const decisionPayload = JSON.parse(JSON.stringify({
+      plan,
+      result: result.result,
+      escalated: result.escalated ?? false,
+      manualReview: result.manualReview ?? false,
+      workRecommended: result.workRecommended ?? false,
+    })) as Prisma.InputJsonValue;
 
     await db.aiDecision.create({
       data: {
@@ -39,13 +47,7 @@ export async function POST(request: Request) {
         confidence: result.confidence,
         inputTokens: result.usage?.inputTokens,
         outputTokens: result.usage?.outputTokens,
-        decision: {
-          plan,
-          result: result.result,
-          escalated: result.escalated ?? false,
-          manualReview: result.manualReview ?? false,
-          workRecommended: result.workRecommended ?? false,
-        },
+        decision: decisionPayload,
       },
     });
 
