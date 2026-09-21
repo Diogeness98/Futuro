@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { AutomationRunForm } from "@/components/automation-run-form";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -68,15 +69,7 @@ export default async function AutomationsPage() {
                     {automation.enabled ? (
                       <details className="automation-test">
                         <summary>Executar</summary>
-                        <form className="mini-form" action={`/api/automations/${automation.id}/run`} method="post">
-                          <textarea
-                            name="context"
-                            rows={4}
-                            required
-                            placeholder='{"pedido":{"status":"pending","total":120}}'
-                          />
-                          <button className="secondary" type="submit">Rodar teste</button>
-                        </form>
+                        <AutomationRunForm automationId={automation.id} />
                       </details>
                     ) : (
                       <span className="readonly-note">Ative para testar</span>
