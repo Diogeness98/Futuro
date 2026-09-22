@@ -291,6 +291,58 @@ export async function processAllAutomationQueues(input: {
   return summary;
 }
 
+export async function retryDeadLetterExecutions(input: {
+  organizationId: string;
+  limit?: number;
+}) {
+  const limit = Math.min(100, Math.max(1, input.limit ?? 20));
+
+  const executions = await db.automationEventExecution.findMany({
+    where: {
+      event: { organizationId: input.organizationId },
+      status: "failed",
+      attempts: { gte: MAX_ATTEMPTS },
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      eventId: true,
+    },
+  });
+
+  if (executions.length === 0) {
+    return { reset: 0, events: 0 };
+  }
+
+  const eventIds = [...new Set(executions.map((execution) => execution.eventId))];
+
+  await db.$transaction([
+    db.automationEventExecution.updateMany({
+      where: { id: { in: executions.map((execution) => execution.id) } },
+      data: {
+        status: "pending",
+        attempts: 0,
+        lastError: null,
+        startedAt: null,
+        processedAt: null,
+      },
+    }),
+    db.automationEvent.updateMany({
+      where: { id: { in: eventIds } },
+      data: {
+        status: "pending",
+        processedAt: null,
+      },
+    }),
+  ]);
+
+  return {
+    reset: executions.length,
+    events: eventIds.length,
+  };
+}
+
 export async function getAutomationQueueStatus(organizationId: string) {
   const [pending, processing, failed, succeeded] = await Promise.all([
     db.automationEventExecution.count({
