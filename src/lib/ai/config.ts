@@ -26,6 +26,7 @@ export const aiConfig = {
     defaultReasoningEffort: effortFromEnv("OPENAI_DEFAULT_REASONING_EFFORT", "low"),
     escalationReasoningEffort: effortFromEnv("OPENAI_ESCALATION_REASONING_EFFORT", "medium"),
     defaultMaxOutputTokens: numberFromEnv("OPENAI_DEFAULT_MAX_OUTPUT_TOKENS", 1_600),
+    reviewMaxOutputTokens: numberFromEnv("OPENAI_REVIEW_MAX_OUTPUT_TOKENS", 300),
     escalationMaxOutputTokens: numberFromEnv("OPENAI_ESCALATION_MAX_OUTPUT_TOKENS", 6_000),
     maxCallsPer24h: numberFromEnv("OPENAI_MAX_CALLS_PER_24H", 100),
     maxInputTokensPer24h: numberFromEnv("OPENAI_MAX_INPUT_TOKENS_PER_24H", 200_000),
