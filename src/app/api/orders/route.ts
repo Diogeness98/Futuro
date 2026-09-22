@@ -86,6 +86,11 @@ export async function POST(request: Request) {
           },
         },
       });
+
+      await db.order.update({
+        where: { id: order.id },
+        data: { orderCreatedEventAt: new Date() },
+      });
     } catch (queueError) {
       console.error(
         "Pedido criado, mas falhou ao enfileirar automações:",
