@@ -1,8 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 
+const MIN_CRON_SECRET_LENGTH = 32;
+
 export function cronAuthorized(request: Request) {
   const secret = process.env.AUTOMATION_CRON_SECRET;
-  if (!secret) return { authorized: false as const, configured: false as const };
+  if (!secret || secret.length < MIN_CRON_SECRET_LENGTH) {
+    return { authorized: false as const, configured: false as const };
+  }
 
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) {
