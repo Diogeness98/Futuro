@@ -45,9 +45,14 @@ describeDb("TikTok product sync integration", () => {
           stock: 4,
         },
       ],
+    }, {
+      cipher: "SHOP_CIPHER_1",
+      name: "Loja Brasil",
     });
 
     expect(first.channel).toBe("tiktok_shop");
+    expect(first.sourceShopCipher).toBe("SHOP_CIPHER_1");
+    expect(first.sourceShopName).toBe("Loja Brasil");
     expect(first.variants).toHaveLength(2);
 
     const second = await persistTikTokProduct(organization.id, {
@@ -69,12 +74,16 @@ describeDb("TikTok product sync integration", () => {
           stock: 5,
         },
       ],
+    }, {
+      cipher: "SHOP_CIPHER_1",
+      name: "Loja Brasil Atualizada",
     });
 
     expect(second.id).toBe(first.id);
     expect(second.name).toBe("Camiseta atualizada");
     expect(second.stock).toBe(5);
     expect(second.active).toBe(false);
+    expect(second.sourceShopName).toBe("Loja Brasil Atualizada");
     expect(second.variants).toHaveLength(1);
     expect(second.variants[0]?.externalId).toBe("sku-1");
     expect(second.variants[0]?.priceCents).toBe(6490);
