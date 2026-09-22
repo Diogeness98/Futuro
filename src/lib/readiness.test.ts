@@ -35,6 +35,24 @@ describe("evaluateRuntimeReadiness", () => {
     expect(serialized).not.toContain(env.TIKTOK_SHOP_APP_SECRET);
   });
 
+  it("rejeita APP_URL HTTP em produção", () => {
+    const env = readyEnv();
+    env.NODE_ENV = "production";
+    env.APP_URL = "http://futuro.example.com";
+
+    const result = evaluateRuntimeReadiness(env);
+    expect(result.checks.find((check) => check.id === "app_url")?.ready).toBe(false);
+  });
+
+  it("permite localhost HTTP fora de produção", () => {
+    const env = readyEnv();
+    env.NODE_ENV = "development";
+    env.APP_URL = "http://localhost:3000";
+
+    const result = evaluateRuntimeReadiness(env);
+    expect(result.checks.find((check) => check.id === "app_url")?.ready).toBe(true);
+  });
+
   it("detecta Jev ainda em mock", () => {
     const env = readyEnv();
     env.JEV_MODE = "mock";
