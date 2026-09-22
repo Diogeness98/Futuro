@@ -24,6 +24,7 @@ export interface QueueEnqueueSummary {
 export interface QueueProcessSummary {
   claimed: number;
   succeeded: number;
+  review: number;
   failed: number;
   skipped: number;
 }
@@ -158,6 +159,7 @@ export async function processAutomationQueue(input: {
   const summary: QueueProcessSummary = {
     claimed: 0,
     succeeded: 0,
+    review: 0,
     failed: 0,
     skipped: 0,
   };
@@ -205,12 +207,18 @@ export async function processAutomationQueue(input: {
       });
 
       const skippedByCondition = isSkippedResult(runResult.result.result);
+      const requiresReview = !skippedByCondition && runResult.result.manualReview === true;
+      const executionStatus = skippedByCondition
+        ? "skipped"
+        : requiresReview
+          ? "review"
+          : "succeeded";
 
       await db.automationEventExecution.update({
         where: { id: candidate.id },
         data: {
-          status: skippedByCondition ? "skipped" : "succeeded",
-          processedAt: new Date(),
+          status: executionStatus,
+          processedAt: requiresReview ? null : new Date(),
           lastError: null,
           result: toJson({
             provider: runResult.result.provider,
@@ -223,6 +231,7 @@ export async function processAutomationQueue(input: {
       });
 
       if (skippedByCondition) summary.skipped += 1;
+      else if (requiresReview) summary.review += 1;
       else summary.succeeded += 1;
     } catch (error) {
       const message = errorMessage(error);
@@ -282,6 +291,7 @@ export async function processAllAutomationQueues(input: {
     organizations: 0,
     claimed: 0,
     succeeded: 0,
+    review: 0,
     failed: 0,
     skipped: 0,
   };
@@ -295,11 +305,75 @@ export async function processAllAutomationQueues(input: {
     summary.organizations += 1;
     summary.claimed += result.claimed;
     summary.succeeded += result.succeeded;
+    summary.review += result.review;
     summary.failed += result.failed;
     summary.skipped += result.skipped;
   }
 
   return summary;
+}
+
+export async function resolveAutomationReview(input: {
+  organizationId: string;
+  executionId: string;
+  actorId: string;
+  note?: string;
+}) {
+  const execution = await db.automationEventExecution.findFirst({
+    where: {
+      id: input.executionId,
+      status: "review",
+      event: { organizationId: input.organizationId },
+    },
+    include: {
+      event: true,
+      automation: { select: { name: true } },
+    },
+  });
+
+  if (!execution) throw new Error("Execução em revisão não encontrada.");
+
+  const resolvedAt = new Date();
+  const existingResult = jsonObject(execution.result);
+
+  await db.automationEventExecution.update({
+    where: { id: execution.id },
+    data: {
+      status: "reviewed",
+      processedAt: resolvedAt,
+      result: toJson({
+        ...existingResult,
+        humanReview: {
+          resolved: true,
+          resolvedAt: resolvedAt.toISOString(),
+          resolvedBy: input.actorId,
+          note: input.note?.trim().slice(0, 1000) || null,
+        },
+      }),
+    },
+  });
+
+  await recordActivity({
+    organizationId: input.organizationId,
+    actorId: input.actorId,
+    action: "automation.review_resolved",
+    entityType: "AutomationEventExecution",
+    entityId: execution.id,
+    metadata: toJson({
+      automationId: execution.automationId,
+      automationName: execution.automation.name,
+      eventId: execution.eventId,
+      note: input.note?.trim().slice(0, 300) || null,
+    }),
+  });
+
+  await finalizeEvent(execution.eventId);
+
+  return {
+    executionId: execution.id,
+    eventId: execution.eventId,
+    status: "reviewed",
+  };
 }
 
 export async function retryDeadLetterExecutions(input: {
@@ -356,7 +430,7 @@ export async function retryDeadLetterExecutions(input: {
 }
 
 export async function getAutomationQueueStatus(organizationId: string) {
-  const [pending, processing, failed, succeeded] = await Promise.all([
+  const [pending, processing, failed, succeeded, review] = await Promise.all([
     db.automationEventExecution.count({
       where: {
         event: { organizationId },
@@ -382,6 +456,12 @@ export async function getAutomationQueueStatus(organizationId: string) {
         status: "succeeded",
       },
     }),
+    db.automationEventExecution.count({
+      where: {
+        event: { organizationId },
+        status: "review",
+      },
+    }),
   ]);
 
   const deadLetter = await db.automationEventExecution.count({
@@ -397,6 +477,7 @@ export async function getAutomationQueueStatus(organizationId: string) {
     processing,
     retryableFailed: failed,
     succeeded,
+    review,
     deadLetter,
     batchSize: DEFAULT_BATCH_SIZE,
     maxAttempts: MAX_ATTEMPTS,
@@ -431,6 +512,7 @@ async function finalizeEvent(eventId: string) {
     return;
   }
 
+  const hasReview = executions.some((execution) => execution.status === "review");
   const hasDeadLetter = executions.some((execution) =>
     execution.status === "failed" && execution.attempts >= MAX_ATTEMPTS,
   );
@@ -438,8 +520,8 @@ async function finalizeEvent(eventId: string) {
   await db.automationEvent.update({
     where: { id: eventId },
     data: {
-      status: hasDeadLetter ? "failed" : "processed",
-      processedAt: new Date(),
+      status: hasReview ? "review" : hasDeadLetter ? "failed" : "processed",
+      processedAt: hasReview ? null : new Date(),
     },
   });
 }
@@ -490,6 +572,11 @@ function deduplicateEvents(events: QueueEventInput[]) {
 
 function toJson(value: unknown) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function jsonObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }
 
 function isSkippedResult(value: unknown) {
