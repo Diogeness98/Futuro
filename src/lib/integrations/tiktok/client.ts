@@ -1,7 +1,7 @@
 import { tikTokShopConfig, requireTikTokAppCredentials } from "./config";
-import { signTikTokRequest } from "./signing";
+import { signTikTokRequest, type TikTokQueryValue } from "./signing";
 
-type QueryValue = string | number | boolean | null | undefined;
+type QueryValue = TikTokQueryValue;
 
 interface TikTokRequestInput {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -70,7 +70,12 @@ export async function tikTokShopRequest<T>(input: TikTokRequestInput): Promise<T
 
   const url = new URL(input.path, tikTokShopConfig.apiBaseUrl);
   for (const [key, value] of Object.entries({ ...query, sign })) {
-    if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, String(item));
+    } else {
+      url.searchParams.set(key, String(value));
+    }
   }
 
   const response = await fetch(url, {
@@ -209,4 +214,46 @@ export async function searchTikTokProducts(
       : undefined,
     totalCount: typeof data.total_count === "number" ? data.total_count : undefined,
   };
+}
+
+
+export interface TikTokOrderDetailLineItem {
+  id?: string;
+  product_id?: string;
+  product_name?: string;
+  sku_id?: string;
+  sku_name?: string;
+  seller_sku?: string;
+  sale_price?: string;
+  currency?: string;
+}
+
+export interface TikTokOrderDetail {
+  id?: string;
+  status?: string;
+  need_upload_invoice?: string;
+  order_type?: string;
+  fulfillment_type?: string;
+  shipping_type?: string;
+  line_items?: TikTokOrderDetailLineItem[];
+}
+
+export async function getTikTokOrderDetails(
+  accessToken: string,
+  shopCipher: string,
+  orderIds: string[],
+): Promise<TikTokOrderDetail[]> {
+  const ids = [...new Set(orderIds.map(String).map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0) return [];
+  if (ids.length > 50) throw new Error("Get Order Detail aceita no máximo 50 IDs por chamada.");
+
+  const data = await tikTokShopRequest<{ orders?: TikTokOrderDetail[] }>({
+    method: "GET",
+    path: "/order/202309/orders",
+    accessToken,
+    shopCipher,
+    query: { ids },
+  });
+
+  return Array.isArray(data.orders) ? data.orders : [];
 }
