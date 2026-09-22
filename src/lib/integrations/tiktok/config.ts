@@ -13,6 +13,7 @@ export const tikTokShopConfig = {
   syncOrganizationLimit: Math.min(20, Math.max(1, Math.floor(numberFromEnv("TIKTOK_SYNC_ORG_LIMIT", 5)))),
   syncMaxPagesPerShop: Math.min(50, Math.max(1, Math.floor(numberFromEnv("TIKTOK_SYNC_MAX_PAGES_PER_SHOP", 20)))),
   productSyncIntervalMinutes: Math.min(1440, Math.max(5, Math.floor(numberFromEnv("TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES", 60)))),
+  orderDetailMaxBatchesPerSync: Math.min(10, Math.max(0, Math.floor(numberFromEnv("TIKTOK_ORDER_DETAIL_MAX_BATCHES_PER_SYNC", 2)))),
 };
 
 export function requireTikTokAppCredentials() {
