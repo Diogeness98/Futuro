@@ -28,6 +28,7 @@ async function handle(request: Request) {
   const summary = await syncConnectedTikTokOrganizations({
     organizationLimit: tikTokShopConfig.syncOrganizationLimit,
     maxPagesPerShop: tikTokShopConfig.syncMaxPagesPerShop,
+    productSyncIntervalMinutes: tikTokShopConfig.productSyncIntervalMinutes,
   });
 
   return NextResponse.json({
