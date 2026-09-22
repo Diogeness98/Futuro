@@ -27,6 +27,7 @@ export default async function AutomationsPage() {
   ]);
 
   const backlog = queue.pending + queue.retryableFailed;
+  const owner = session.role === "owner";
 
   return (
     <AppShell active="Automações" email={session.email}>
@@ -59,16 +60,22 @@ export default async function AutomationsPage() {
         </div>
 
         <div className="queue-actions">
-          <form action="/api/automations/process" method="post">
-            <input type="hidden" name="limit" value={queue.batchSize} />
-            <button className="primary" type="submit" disabled={backlog === 0}>
-              Processar até {queue.batchSize}
-            </button>
-          </form>
-          {queue.deadLetter > 0 && (
-            <form action="/api/automations/retry-dead-letter" method="post">
-              <button className="secondary" type="submit">Reenfileirar até 20 falhas</button>
-            </form>
+          {owner ? (
+            <>
+              <form action="/api/automations/process" method="post">
+                <input type="hidden" name="limit" value={queue.batchSize} />
+                <button className="primary" type="submit" disabled={backlog === 0}>
+                  Processar até {queue.batchSize}
+                </button>
+              </form>
+              {queue.deadLetter > 0 && (
+                <form action="/api/automations/retry-dead-letter" method="post">
+                  <button className="secondary" type="submit">Reenfileirar até 20 falhas</button>
+                </form>
+              )}
+            </>
+          ) : (
+            <span className="readonly-note">Processamento manual disponível somente ao proprietário.</span>
           )}
           <small>
             Máximo de {queue.maxAttempts} tentativas por execução. Falhas definitivas ficam visíveis e não são repetidas silenciosamente.
@@ -77,6 +84,7 @@ export default async function AutomationsPage() {
       </section>
 
       <div className="two-col section">
+        {owner ? (
         <section className="card">
           <h2>Nova automação</h2>
           <form className="form" action="/api/automations" method="post">
@@ -143,6 +151,12 @@ export default async function AutomationsPage() {
             <button className="primary">Criar automação</button>
           </form>
         </section>
+        ) : (
+          <section className="card">
+            <h2>Nova automação</h2>
+            <p className="empty">Somente o proprietário pode criar ou alterar automações.</p>
+          </section>
+        )}
 
         <section className="card table-card">
           <h2>Fluxos cadastrados</h2>
@@ -159,26 +173,34 @@ export default async function AutomationsPage() {
                   </td>
                   <td><span className={automation.enabled ? "status ok" : "status"}>{automation.enabled ? "Ativa" : "Inativa"}</span></td>
                   <td>
-                    {automation.enabled ? (
-                      <details className="automation-test">
-                        <summary>Executar</summary>
-                        <AutomationRunForm automationId={automation.id} />
-                      </details>
+                    {owner ? (
+                      automation.enabled ? (
+                        <details className="automation-test">
+                          <summary>Executar</summary>
+                          <AutomationRunForm automationId={automation.id} />
+                        </details>
+                      ) : (
+                        <span className="readonly-note">Ative para testar</span>
+                      )
                     ) : (
-                      <span className="readonly-note">Ative para testar</span>
+                      <span className="readonly-note">Somente proprietário</span>
                     )}
                   </td>
                   <td>
-                    <div className="automation-manage">
-                      <form action={`/api/automations/${automation.id}`} method="post">
-                        <input type="hidden" name="intent" value="toggle" />
-                        <button className="secondary" type="submit">{automation.enabled ? "Desativar" : "Ativar"}</button>
-                      </form>
-                      <form action={`/api/automations/${automation.id}`} method="post">
-                        <input type="hidden" name="intent" value="delete" />
-                        <button className="danger-button" type="submit">Excluir</button>
-                      </form>
-                    </div>
+                    {owner ? (
+                      <div className="automation-manage">
+                        <form action={`/api/automations/${automation.id}`} method="post">
+                          <input type="hidden" name="intent" value="toggle" />
+                          <button className="secondary" type="submit">{automation.enabled ? "Desativar" : "Ativar"}</button>
+                        </form>
+                        <form action={`/api/automations/${automation.id}`} method="post">
+                          <input type="hidden" name="intent" value="delete" />
+                          <button className="danger-button" type="submit">Excluir</button>
+                        </form>
+                      </div>
+                    ) : (
+                      <span className="readonly-note">Somente proprietário</span>
+                    )}
                   </td>
                 </tr>
               ))}
