@@ -139,3 +139,74 @@ export async function searchTikTokOrders(
     totalCount: typeof data.total_count === "number" ? data.total_count : undefined,
   };
 }
+
+
+export interface TikTokProductSkuSummary {
+  id?: string;
+  seller_sku?: string;
+  price?: {
+    currency?: string;
+    sale_price?: string;
+    tax_exclusive_price?: string;
+  };
+  list_price?: {
+    amount?: string;
+    currency?: string;
+  };
+  inventory?: Array<{
+    quantity?: number;
+    warehouse_id?: string;
+  }>;
+}
+
+export interface TikTokProductSummary {
+  id?: string;
+  title?: string;
+  status?: string;
+  is_not_for_sale?: boolean;
+  create_time?: number;
+  update_time?: number;
+  skus?: TikTokProductSkuSummary[];
+}
+
+export interface TikTokProductSearchResult {
+  products: TikTokProductSummary[];
+  nextPageToken?: string;
+  totalCount?: number;
+}
+
+export async function searchTikTokProducts(
+  accessToken: string,
+  shopCipher: string,
+  options: {
+    pageToken?: string;
+    pageSize?: number;
+    status?: string;
+  } = {},
+): Promise<TikTokProductSearchResult> {
+  const data = await tikTokShopRequest<{
+    products?: TikTokProductSummary[];
+    next_page_token?: string;
+    total_count?: number;
+  }>({
+    method: "POST",
+    path: "/product/202502/products/search",
+    accessToken,
+    shopCipher,
+    query: {
+      page_size: Math.min(100, Math.max(1, options.pageSize ?? 100)),
+      page_token: options.pageToken,
+    },
+    body: {
+      status: options.status ?? "ALL",
+    },
+  });
+
+  return {
+    products: Array.isArray(data.products) ? data.products : [],
+    nextPageToken: typeof data.next_page_token === "string" && data.next_page_token
+      ? data.next_page_token
+      : undefined,
+    totalCount: typeof data.total_count === "number" ? data.total_count : undefined,
+  };
+}
