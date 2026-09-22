@@ -130,7 +130,7 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
     const reviewPrompt = [
       "Você é o revisor econômico do roteador Futuro.",
       "Revise a decisão abaixo e selecione exatamente uma opção permitida.",
-      `Tarefa: ${task.input}`,
+      `Tarefa: ${reviewContext(task.input)}`,
       task.decisionInstructions ? `Critério da decisão: ${task.decisionInstructions}` : "",
       task.criteria ? `Critérios das opções: ${JSON.stringify(task.criteria)}` : "",
       `Opções permitidas: ${taskOptions.join(", ")}`,
@@ -274,12 +274,17 @@ function usageFromJev(decision: JevDecision): ProviderUsage | undefined {
 function buildDecisionFallbackPrompt(task: AiTask, options: string[], jevError: string) {
   return [
     "Jev está indisponível. Faça somente a decisão estruturada necessária.",
-    `Estado: ${task.input}`,
+    `Estado: ${reviewContext(task.input)}`,
     task.decisionInstructions ? `Pergunta: ${task.decisionInstructions}` : "",
     task.criteria ? `Critérios: ${JSON.stringify(task.criteria)}` : "",
     `Opções permitidas: ${options.join(", ")}`,
     `Falha do Jev: ${jevError}`,
   ].filter(Boolean).join("\n");
+}
+
+function reviewContext(input: string) {
+  if (input.length <= aiConfig.openai.reviewMaxInputChars) return input;
+  return input.slice(0, aiConfig.openai.reviewMaxInputChars) + "\n[contexto truncado para economia]";
 }
 
 function errorMessage(error: unknown) {
