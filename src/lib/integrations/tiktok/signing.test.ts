@@ -22,6 +22,27 @@ describe("signTikTokRequest", () => {
     expect(a).toBe(b);
   });
 
+  it("assina parâmetros repetidos como valores unidos por vírgula", () => {
+    const a = signTikTokRequest({
+      appSecret: "test-secret",
+      path: "/order/202309/orders",
+      query: { app_key: "abc", timestamp: 123, ids: ["100", "200"] },
+    });
+    const b = signTikTokRequest({
+      appSecret: "test-secret",
+      path: "/order/202309/orders",
+      query: { app_key: "abc", timestamp: 123, ids: ["100", "200"] },
+    });
+    const reversed = signTikTokRequest({
+      appSecret: "test-secret",
+      path: "/order/202309/orders",
+      query: { app_key: "abc", timestamp: 123, ids: ["200", "100"] },
+    });
+
+    expect(a).toBe(b);
+    expect(a).not.toBe(reversed);
+  });
+
   it("inclui JSON body para requests não multipart", () => {
     const a = signTikTokRequest({ ...base, query: { app_key: "abc", timestamp: 123 }, body: '{"a":1}', contentType: "application/json" });
     const b = signTikTokRequest({ ...base, query: { app_key: "abc", timestamp: 123 }, body: '{"a":2}', contentType: "application/json" });
