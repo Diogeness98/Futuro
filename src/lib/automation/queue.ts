@@ -11,6 +11,7 @@ const DEFAULT_BATCH_SIZE = 5;
 interface QueueEventInput {
   entityType: string;
   entityId: string;
+  dedupeKey?: string;
   payload: unknown;
 }
 
@@ -88,6 +89,7 @@ export async function enqueueAutomationEvents(input: {
         triggerType: input.triggerType,
         entityType: event.entityType,
         entityId: event.entityId,
+        dedupeKey: event.dedupeKey ?? `${event.entityType}:${event.entityId}`,
         payload: toJson(event.payload),
         status: "pending",
       })),
@@ -99,8 +101,7 @@ export async function enqueueAutomationEvents(input: {
         organizationId: input.organizationId,
         triggerType: input.triggerType,
         OR: uniqueEvents.map((event) => ({
-          entityType: event.entityType,
-          entityId: event.entityId,
+          dedupeKey: event.dedupeKey ?? `${event.entityType}:${event.entityId}`,
         })),
       },
       select: { id: true },
@@ -411,7 +412,7 @@ function deduplicateEvents(events: QueueEventInput[]) {
   const seen = new Set<string>();
   return events.filter((event) => {
     if (!event.entityType.trim() || !event.entityId.trim()) return false;
-    const key = `${event.entityType.trim()}:${event.entityId.trim()}`;
+    const key = event.dedupeKey?.trim() || `${event.entityType.trim()}:${event.entityId.trim()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
