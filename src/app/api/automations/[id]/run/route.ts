@@ -10,6 +10,7 @@ export async function POST(
 ) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (session.role !== "owner") return NextResponse.json({ error: "Apenas o proprietário pode executar esta ação de automação." }, { status: 403 });
 
   const { id } = await context.params;
   const wantsJson = (request.headers.get("content-type") ?? "").includes("application/json");
