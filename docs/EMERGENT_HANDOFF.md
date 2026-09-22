@@ -201,14 +201,16 @@ Não aumentar esses valores durante a primeira validação real.
 
 A fila possui:
 - `order.created` já conectado para pedidos manuais e novos pedidos TikTok;
-- `product.low_stock` já conectado ao cruzar o limiar configurado;
+- `product.low_stock` já conectado ao cruzar o limiar configurado em produtos manuais e TikTok;
 - `LOW_STOCK_THRESHOLD` com padrão 5;
 - execução idempotente por evento × automação;
 - máximo de 3 tentativas;
 - recuperação de claims travados;
 - dead-letter após falha definitiva;
 - soft-delete de automações para preservar auditoria;
-- processamento manual pelo painel como fallback.
+- processamento manual pelo painel como fallback;
+- episódios de estoque baixo idempotentes, com retry seguro;
+- primeira importação do catálogo TikTok tratada como baseline sem disparar alertas/IA históricos.
 
 ## Segurança
 
