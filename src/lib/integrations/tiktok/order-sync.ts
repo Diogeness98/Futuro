@@ -122,11 +122,15 @@ export async function syncTikTokOrders(
                 channel: CHANNEL,
                 status: normalized.status,
                 totalCents: normalized.totalCents,
+                sourceShopCipher: shop.cipher,
+                sourceShopName: shop.name ?? null,
                 orderCreatedEventAt: baselineAt,
               },
               update: {
                 status: normalized.status,
                 totalCents: normalized.totalCents,
+                sourceShopCipher: shop.cipher,
+                sourceShopName: shop.name ?? null,
                 ...(initialImport ? { orderCreatedEventAt: baselineAt } : {}),
               },
             });
