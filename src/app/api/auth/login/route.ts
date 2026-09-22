@@ -11,6 +11,7 @@ const schema = z.object({
 });
 
 const INVALID_LOGIN = { error: "E-mail ou senha inválidos." };
+const NO_STORE_HEADERS = { "Cache-Control": "no-store, max-age=0" };
 const DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const membership = user?.memberships[0];
 
     if (!user || !passwordValid || !membership) {
-      return NextResponse.json(INVALID_LOGIN, { status: 401 });
+      return NextResponse.json(INVALID_LOGIN, { status: 401, headers: NO_STORE_HEADERS });
     }
 
     await setSession({
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       email: user.email,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
   } catch {
     return NextResponse.json(INVALID_LOGIN, { status: 401 });
   }
