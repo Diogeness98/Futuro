@@ -53,6 +53,7 @@ export default async function ProductsPage() {
                   <td><span className={product.channel === "tiktok_shop" ? "status ok" : "status"}>{channelLabel(product.channel)}</span></td>
                   <td>
                     <strong>{product.name}</strong>
+                    {product.sourceShopName && <small className="table-subline">{product.sourceShopName}</small>}
                     {product.externalId && <small className="table-subline">ID {product.externalId}</small>}
                   </td>
                   <td>{product.sku ?? (product._count.variants > 1 ? "Múltiplos SKUs" : "—")}</td>
