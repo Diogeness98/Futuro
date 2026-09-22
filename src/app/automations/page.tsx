@@ -83,6 +83,31 @@ export default async function AutomationsPage() {
                 <option value="manual">Manual</option>
               </select>
             </label>
+            <div className="condition-box">
+              <strong>Filtro determinístico opcional</strong>
+              <small>Se não atender, o evento é pulado antes de Jev/GPT.</small>
+              <label>Campo
+                <input
+                  name="conditionPath"
+                  placeholder="Ex.: order.totalCents, order.channel ou product.stock"
+                />
+              </label>
+              <label>Operador
+                <select name="conditionOperator" defaultValue="">
+                  <option value="">Sem filtro</option>
+                  <option value="eq">= igual</option>
+                  <option value="neq">≠ diferente</option>
+                  <option value="gt">&gt; maior que</option>
+                  <option value="gte">≥ maior ou igual</option>
+                  <option value="lt">&lt; menor que</option>
+                  <option value="lte">≤ menor ou igual</option>
+                  <option value="contains">contém</option>
+                </select>
+              </label>
+              <label>Valor
+                <input name="conditionValue" placeholder="Ex.: 50000, tiktok_shop ou true" />
+              </label>
+            </div>
             <label>Ação
               <select name="actionType" defaultValue="jev.decide">
                 <option value="jev.decide">Jev — decidir/classificar</option>
@@ -123,7 +148,10 @@ export default async function AutomationsPage() {
                 <tr key={automation.id}>
                   <td>{automation.name}</td>
                   <td>{jsonType(automation.trigger)}</td>
-                  <td>{actionSummary(automation.action)}</td>
+                  <td>
+                    <div>{actionSummary(automation.action)}</div>
+                    <small className="automation-condition-summary">{conditionsSummary(automation.conditions)}</small>
+                  </td>
                   <td><span className={automation.enabled ? "status ok" : "status"}>{automation.enabled ? "Ativa" : "Inativa"}</span></td>
                   <td>
                     {automation.enabled ? (
@@ -204,6 +232,20 @@ function jsonType(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "—";
   const type = (value as Record<string, unknown>).type;
   return typeof type === "string" ? type : "—";
+}
+
+function conditionsSummary(value: unknown) {
+  if (!Array.isArray(value) || value.length === 0) return "Sem filtro";
+
+  const first = value[0];
+  if (!first || typeof first !== "object" || Array.isArray(first)) return "Filtro configurado";
+  const condition = first as Record<string, unknown>;
+
+  const path = typeof condition.path === "string" ? condition.path : "campo";
+  const operator = typeof condition.operator === "string" ? condition.operator : "?";
+  const expected = condition.value == null ? "?" : String(condition.value);
+
+  return `Filtro: ${path} ${operator} ${expected}`;
 }
 
 function actionSummary(value: unknown) {
