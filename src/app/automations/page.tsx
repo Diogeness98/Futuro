@@ -10,7 +10,7 @@ export default async function AutomationsPage() {
   const session = await requireSession();
   const [automations, queue] = await Promise.all([
     db.automation.findMany({
-      where: { organizationId: session.organizationId },
+      where: { organizationId: session.organizationId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
