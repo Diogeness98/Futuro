@@ -9,6 +9,7 @@ interface ProductProps {
   sku: string | null;
   priceCents: number;
   stock: number;
+  channel: string;
 }
 
 interface CustomerProps {
@@ -52,8 +53,12 @@ function useMutation() {
   return { pending, error, run };
 }
 
-export function ProductActions({ id, name, sku, priceCents, stock }: ProductProps) {
+export function ProductActions({ id, name, sku, priceCents, stock, channel }: ProductProps) {
   const mutation = useMutation();
+
+  if (channel !== "manual") {
+    return <span className="readonly-note">Gerenciado pela integração</span>;
+  }
 
   async function update(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
