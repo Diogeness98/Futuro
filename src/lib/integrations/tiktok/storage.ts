@@ -1,6 +1,6 @@
 import { Prisma } from "../../../generated/prisma/client";
-import { decryptJson, encryptJson } from "@/lib/crypto/secrets";
-import { db } from "@/lib/db";
+import { decryptJson, encryptJson } from "../../crypto/secrets";
+import { db } from "../../db";
 import type { TikTokAuthorizedShop } from "./client";
 import type { TikTokTokenSet } from "./tokens";
 
