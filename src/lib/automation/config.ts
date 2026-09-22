@@ -1,8 +1,15 @@
 export type AutomationTriggerType = "order.created" | "product.low_stock" | "manual";
 export type AutomationActionType = "jev.decide" | "gpt.generate" | "manual.review";
+export type AutomationConditionOperator = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "contains";
 
 export interface AutomationTriggerConfig {
   type: AutomationTriggerType;
+}
+
+export interface AutomationConditionConfig {
+  path: string;
+  operator: AutomationConditionOperator;
+  value: string | number | boolean;
 }
 
 export type AutomationActionConfig =
@@ -52,6 +59,28 @@ export function buildAutomationAction(input: {
     type: "manual.review",
     instruction: instruction || undefined,
   };
+}
+
+export function buildAutomationConditions(input: {
+  path?: string;
+  operator?: AutomationConditionOperator | "";
+  value?: string;
+}): AutomationConditionConfig[] | undefined {
+  const path = input.path?.trim() ?? "";
+  const operator = input.operator ?? "";
+  const rawValue = input.value?.trim() ?? "";
+
+  if (!path && !operator && !rawValue) return undefined;
+  if (!path || !operator || !rawValue) {
+    throw new Error("Condição determinística incompleta: informe campo, operador e valor.");
+  }
+  if (!safePath(path)) throw new Error("Campo de condição inválido.");
+
+  return [{
+    path,
+    operator,
+    value: parseConditionValue(rawValue),
+  }];
 }
 
 export function parseAutomationTrigger(value: unknown): AutomationTriggerConfig {
@@ -107,6 +136,57 @@ export function parseAutomationAction(value: unknown): AutomationActionConfig {
   throw new Error("Ação de automação inválida.");
 }
 
+export function parseAutomationConditions(value: unknown): AutomationConditionConfig[] {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error("Condições de automação inválidas.");
+
+  return value.map((item) => {
+    const record = asRecord(item);
+    const path = typeof record.path === "string" ? record.path.trim() : "";
+    const operator = record.operator;
+
+    if (!safePath(path) || !isConditionOperator(operator)) {
+      throw new Error("Condição de automação inválida.");
+    }
+
+    const conditionValue = record.value;
+    if (
+      typeof conditionValue !== "string" &&
+      typeof conditionValue !== "number" &&
+      typeof conditionValue !== "boolean"
+    ) {
+      throw new Error("Valor de condição inválido.");
+    }
+
+    return {
+      path,
+      operator,
+      value: conditionValue,
+    };
+  });
+}
+
+export function evaluateAutomationConditions(
+  context: unknown,
+  conditions: AutomationConditionConfig[],
+) {
+  if (conditions.length === 0) return { matched: true, reason: "Sem condição determinística." };
+
+  const source = normalizeConditionContext(context);
+
+  for (const condition of conditions) {
+    const actual = readPath(source, condition.path);
+    if (!compareCondition(actual, condition.operator, condition.value)) {
+      return {
+        matched: false,
+        reason: `Condição não atendida: ${condition.path} ${condition.operator} ${String(condition.value)}.`,
+      };
+    }
+  }
+
+  return { matched: true, reason: "Todas as condições determinísticas foram atendidas." };
+}
+
 function buildCriteria(options: string[], text?: string) {
   const supplied = new Map<string, string>();
 
@@ -137,6 +217,86 @@ function normalizeStoredCriteria(options: string[], value: unknown) {
       ? record[option].trim()
       : option,
   ]));
+}
+
+function normalizeConditionContext(context: unknown): unknown {
+  if (typeof context !== "string") return context;
+
+  try {
+    return JSON.parse(context);
+  } catch {
+    return context;
+  }
+}
+
+function readPath(source: unknown, path: string): unknown {
+  let current = source;
+
+  for (const part of path.split(".")) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+
+  return current;
+}
+
+function compareCondition(
+  actual: unknown,
+  operator: AutomationConditionOperator,
+  expected: string | number | boolean,
+) {
+  if (operator === "contains") {
+    if (typeof actual === "string") return actual.includes(String(expected));
+    if (Array.isArray(actual)) return actual.some((item) => primitiveEquals(item, expected));
+    return false;
+  }
+
+  if (operator === "eq") return primitiveEquals(actual, expected);
+  if (operator === "neq") return !primitiveEquals(actual, expected);
+
+  const actualNumber = Number(actual);
+  const expectedNumber = Number(expected);
+  if (!Number.isFinite(actualNumber) || !Number.isFinite(expectedNumber)) return false;
+
+  if (operator === "gt") return actualNumber > expectedNumber;
+  if (operator === "gte") return actualNumber >= expectedNumber;
+  if (operator === "lt") return actualNumber < expectedNumber;
+  return actualNumber <= expectedNumber;
+}
+
+function primitiveEquals(actual: unknown, expected: string | number | boolean) {
+  if (typeof expected === "number") return Number(actual) === expected;
+  if (typeof expected === "boolean") {
+    if (typeof actual === "boolean") return actual === expected;
+    return String(actual).toLowerCase() === String(expected);
+  }
+  return String(actual ?? "") === expected;
+}
+
+function parseConditionValue(value: string): string | number | boolean {
+  if (value.toLowerCase() === "true") return true;
+  if (value.toLowerCase() === "false") return false;
+
+  const number = Number(value.replace(",", "."));
+  if (value.trim() !== "" && Number.isFinite(number)) return number;
+
+  return value;
+}
+
+function safePath(path: string) {
+  if (!/^[A-Za-z0-9_.]+$/.test(path)) return false;
+  const blocked = new Set(["__proto__", "prototype", "constructor"]);
+  return path.split(".").every((part) => part && !blocked.has(part));
+}
+
+function isConditionOperator(value: unknown): value is AutomationConditionOperator {
+  return value === "eq" ||
+    value === "neq" ||
+    value === "gt" ||
+    value === "gte" ||
+    value === "lt" ||
+    value === "lte" ||
+    value === "contains";
 }
 
 function uniqueOptions(value: string) {
