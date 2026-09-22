@@ -197,6 +197,7 @@ model AutomationEventExecution {
   status       String          @default("pending")
   attempts     Int             @default(0)
   lastError    String?
+  result       Json?
   startedAt    DateTime?
   processedAt  DateTime?
   createdAt    DateTime        @default(now())
