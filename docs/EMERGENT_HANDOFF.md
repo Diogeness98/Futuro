@@ -137,6 +137,14 @@ TIKTOK_SHOP_TIMEOUT_MS=20000
 
 `TIKTOK_SHOP_AUTH_URL` deve receber o Seller Authorization Link fornecido pelo Partner Center.
 
+Configurar no Partner Center o callback/redirect da aplicação para:
+
+```text
+<APP_URL>/api/integrations/tiktok/callback
+```
+
+Na primeira validação, manter TikTok Shop em modo de leitura/sincronização de pedidos. Não implementar fulfillment automático nesta passagem. Para o mercado brasileiro, o fluxo de invoice/nota fiscal deve ser validado antes de qualquer ação de envio.
+
 O código já implementa:
 
 - estado OAuth em cookie HTTP-only para proteção de callback;
