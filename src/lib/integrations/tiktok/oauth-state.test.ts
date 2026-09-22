@@ -53,8 +53,11 @@ describe("TikTok OAuth state", () => {
       issuedAt: 1_000,
     }, secret);
 
+    const last = cookieValue.at(-1);
+    const tampered = cookieValue.slice(0, -1) + (last === "A" ? "B" : "A");
+
     expect(verifyTikTokOAuthStateCookie({
-      cookieValue: cookieValue.replace("org", "xxx"),
+      cookieValue: tampered,
       returnedNonce: "nonce-1",
       userId: "user-1",
       organizationId: "org-1",
