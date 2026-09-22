@@ -169,7 +169,7 @@ Eventos automáticos não chamam IA dentro do CRUD. Eles entram em uma fila Post
 
 Gatilhos conectados:
 - `order.created` para pedidos manuais e novos pedidos TikTok;
-- `product.low_stock` quando o estoque cruza o limiar configurado.
+- `product.low_stock` quando o estoque cruza o limiar configurado, tanto em produtos manuais quanto no catálogo TikTok.
 
 Os schedulers internos são:
 
@@ -183,7 +183,7 @@ Authorization: Bearer <AUTOMATION_CRON_SECRET>
 
 Cadência inicial recomendada: automações a cada 1 minuto e TikTok Shop a cada 5 minutos. O mesmo endpoint TikTok verifica pedidos em cada execução e só sincroniza catálogo quando o intervalo configurado estiver vencido — padrão de 60 minutos.
 
-O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados, revisão humana explícita e dead-letter com retry manual pelo painel.
+O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados, revisão humana explícita e dead-letter com retry manual pelo painel. Estoque baixo usa episódios idempotentes: retries do mesmo episódio não duplicam IA, e a primeira importação do catálogo TikTok não dispara alertas históricos.
 
 ## Emergent
 
