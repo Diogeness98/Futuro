@@ -54,7 +54,7 @@ Instalação:
 ```bash
 cp .env.example .env.local
 npm install
-npm run db:push
+npm run db:deploy
 npm run dev
 ```
 
@@ -67,6 +67,7 @@ http://localhost:3000
 ## Validação antes de deploy
 
 ```bash
+npm run db:status
 npm run typecheck
 npm test
 npm run build
@@ -210,3 +211,15 @@ Validar com credenciais reais em ambiente de teste:
 5. automações manuais;
 6. sincronização de pedidos;
 7. deploy de produção.
+
+
+## Migrações do banco
+
+Produção usa migrações Prisma versionadas:
+
+```bash
+npm run db:deploy
+npm run db:status
+```
+
+`npm run db:push` fica restrito a prototipação local descartável. Para um deploy novo, prefira PostgreSQL limpo + `db:deploy`.
