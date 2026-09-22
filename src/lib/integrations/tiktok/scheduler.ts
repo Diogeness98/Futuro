@@ -2,6 +2,7 @@ import { Prisma } from "../../../generated/prisma/client";
 import { recordActivity } from "../../activity";
 import { db } from "../../db";
 import { syncTikTokOrders } from "./order-sync";
+import { syncTikTokProducts } from "./product-sync";
 
 export interface TikTokScheduledSyncSummary {
   organizations: number;
@@ -11,14 +12,26 @@ export interface TikTokScheduledSyncSummary {
   ordersCreated: number;
   ordersUpdated: number;
   automationEventsQueued: number;
+  productSyncAttempted: number;
+  productSyncSucceeded: number;
+  productSyncFailed: number;
+  productsSynced: number;
+  productsCreated: number;
+  productsUpdated: number;
+  productVariants: number;
 }
 
 export async function syncConnectedTikTokOrganizations(input: {
   organizationLimit?: number;
   maxPagesPerShop?: number;
+  productSyncIntervalMinutes?: number;
 } = {}): Promise<TikTokScheduledSyncSummary> {
   const organizationLimit = Math.min(20, Math.max(1, input.organizationLimit ?? 5));
   const maxPagesPerShop = Math.min(50, Math.max(1, input.maxPagesPerShop ?? 20));
+  const productSyncIntervalMinutes = Math.min(
+    1440,
+    Math.max(5, input.productSyncIntervalMinutes ?? 60),
+  );
 
   const connections = await db.integration.findMany({
     where: {
@@ -41,6 +54,13 @@ export async function syncConnectedTikTokOrganizations(input: {
     ordersCreated: 0,
     ordersUpdated: 0,
     automationEventsQueued: 0,
+    productSyncAttempted: 0,
+    productSyncSucceeded: 0,
+    productSyncFailed: 0,
+    productsSynced: 0,
+    productsCreated: 0,
+    productsUpdated: 0,
+    productVariants: 0,
   };
 
   for (const connection of connections) {
@@ -73,6 +93,7 @@ export async function syncConnectedTikTokOrganizations(input: {
           updated: result.updated,
           pages: result.pages,
           shops: result.shops,
+          initialImport: result.initialImport,
           automationEventsQueued: result.automationEventsQueued,
         }),
       });
@@ -97,9 +118,77 @@ export async function syncConnectedTikTokOrganizations(input: {
         }),
       });
     }
+
+    if (await catalogSyncDue(connection.organizationId, productSyncIntervalMinutes)) {
+      summary.productSyncAttempted += 1;
+
+      try {
+        const result = await syncTikTokProducts(connection.organizationId, {
+          maxPagesPerShop,
+        });
+
+        summary.productSyncSucceeded += 1;
+        summary.productsSynced += result.synced;
+        summary.productsCreated += result.created;
+        summary.productsUpdated += result.updated;
+        summary.productVariants += result.variants;
+
+        await recordActivity({
+          organizationId: connection.organizationId,
+          actorType: "system",
+          action: "integration.tiktok.products_synced",
+          entityType: "Integration",
+          metadata: toJson({
+            provider: "tiktok_shop",
+            source: "scheduler",
+            synced: result.synced,
+            created: result.created,
+            updated: result.updated,
+            variants: result.variants,
+            pages: result.pages,
+            shops: result.shops,
+          }),
+        });
+      } catch (error) {
+        summary.productSyncFailed += 1;
+        const message = error instanceof Error
+          ? error.message
+          : "Falha desconhecida no sync de catálogo TikTok.";
+
+        await recordActivity({
+          organizationId: connection.organizationId,
+          actorType: "system",
+          action: "integration.tiktok.products_sync_failed",
+          entityType: "Integration",
+          metadata: toJson({
+            provider: "tiktok_shop",
+            source: "scheduler",
+            error: message.slice(0, 300),
+          }),
+        });
+      }
+    }
   }
 
   return summary;
+}
+
+export async function catalogSyncDue(
+  organizationId: string,
+  intervalMinutes: number,
+  now = new Date(),
+) {
+  const lastSync = await db.activityLog.findFirst({
+    where: {
+      organizationId,
+      action: "integration.tiktok.products_synced",
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  if (!lastSync) return true;
+  return lastSync.createdAt.getTime() <= now.getTime() - intervalMinutes * 60 * 1000;
 }
 
 function toJson(value: unknown) {
