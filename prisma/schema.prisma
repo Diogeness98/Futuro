@@ -112,10 +112,12 @@ model Integration {
   provider       String
   status         String       @default("not_configured")
   config         Json?
+  syncLockedAt   DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, provider])
+  @@index([provider, status, syncLockedAt])
 }
 
 model Automation {
