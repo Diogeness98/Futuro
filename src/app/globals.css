@@ -153,3 +153,6 @@ th { color: var(--muted); font-weight: 600; }
 .condition-box { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .condition-box > strong { font-size: 13px; }
 .condition-box > small, .automation-condition-summary { color: var(--muted); line-height: 1.4; }
+
+.review-control summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+.review-control .mini-form { margin-top: 7px; min-width: 220px; }
