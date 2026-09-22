@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { recordActivity } from "@/lib/activity";
 import { getTikTokAuthorizedShops } from "@/lib/integrations/tiktok/client";
+import { verifyTikTokOAuthStateCookie } from "@/lib/integrations/tiktok/oauth-state";
 import { saveTikTokConnection } from "@/lib/integrations/tiktok/storage";
 import { exchangeTikTokAuthorizationCode } from "@/lib/integrations/tiktok/tokens";
 
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   const providerError = url.searchParams.get("error") ?? url.searchParams.get("message");
 
   const cookieStore = await cookies();
-  const expectedState = cookieStore.get(STATE_COOKIE)?.value;
+  const stateCookie = cookieStore.get(STATE_COOKIE)?.value;
   cookieStore.delete(STATE_COOKIE);
 
   if (providerError) {
@@ -38,7 +39,21 @@ export async function GET(request: Request) {
     return NextResponse.redirect(destination);
   }
 
-  if (!expectedState || !returnedState || expectedState !== returnedState) {
+  const oauthContext = verifyTikTokOAuthStateCookie({
+    cookieValue: stateCookie,
+    returnedNonce: returnedState,
+    userId: session.userId,
+    organizationId: session.organizationId,
+  });
+
+  if (!oauthContext) {
+    await recordActivity({
+      organizationId: session.organizationId,
+      actorId: session.userId,
+      action: "integration.tiktok.invalid_oauth_state",
+      entityType: "Integration",
+      metadata: { provider: "tiktok_shop" },
+    });
     destination.searchParams.set("tiktok", "invalid_state");
     return NextResponse.redirect(destination);
   }
