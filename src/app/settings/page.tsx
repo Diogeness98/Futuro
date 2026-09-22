@@ -65,7 +65,8 @@ export default async function SettingsPage() {
             <div><dt>Modelo econômico</dt><dd>{aiConfig.openai.defaultModel}</dd></div>
             <div><dt>Raciocínio econômico</dt><dd>{aiConfig.openai.defaultReasoningEffort}</dd></div>
             <div><dt>Saída econômica</dt><dd>{aiConfig.openai.defaultMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
-            <div><dt>Revisão Jev → GPT</dt><dd>{aiConfig.openai.reviewMaxOutputTokens.toLocaleString("pt-BR")} tokens máx.</dd></div>
+            <div><dt>Contexto revisão GPT</dt><dd>{aiConfig.openai.reviewMaxInputChars.toLocaleString("pt-BR")} caracteres máx.</dd></div>
+            <div><dt>Saída revisão GPT</dt><dd>{aiConfig.openai.reviewMaxOutputTokens.toLocaleString("pt-BR")} tokens máx.</dd></div>
             <div><dt>Modelo forte</dt><dd>{aiConfig.openai.escalationModel}</dd></div>
             <div><dt>Raciocínio forte</dt><dd>{aiConfig.openai.escalationReasoningEffort}</dd></div>
             <div><dt>Saída forte</dt><dd>{aiConfig.openai.escalationMaxOutputTokens.toLocaleString("pt-BR")} tokens</dd></div>
