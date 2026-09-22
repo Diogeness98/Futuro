@@ -82,8 +82,8 @@ export async function enqueueAutomationEvents(input: {
     return { events: 0, executions: 0, automations: 0 };
   }
 
-  const createdEvents = await db.$transaction(async (tx) => {
-    await tx.automationEvent.createMany({
+  const queued = await db.$transaction(async (tx) => {
+    const eventInsert = await tx.automationEvent.createMany({
       data: uniqueEvents.map((event) => ({
         organizationId: input.organizationId,
         triggerType: input.triggerType,
@@ -107,8 +107,9 @@ export async function enqueueAutomationEvents(input: {
       select: { id: true },
     });
 
+    let executionCount = 0;
     if (events.length > 0) {
-      await tx.automationEventExecution.createMany({
+      const executionInsert = await tx.automationEventExecution.createMany({
         data: events.flatMap((event) => matchingAutomationIds.map((automationId) => ({
           eventId: event.id,
           automationId,
@@ -116,14 +117,18 @@ export async function enqueueAutomationEvents(input: {
         }))),
         skipDuplicates: true,
       });
+      executionCount = executionInsert.count;
     }
 
-    return events;
+    return {
+      eventCount: eventInsert.count,
+      executionCount,
+    };
   });
 
   return {
-    events: createdEvents.length,
-    executions: createdEvents.length * matchingAutomationIds.length,
+    events: queued.eventCount,
+    executions: queued.executionCount,
     automations: matchingAutomationIds.length,
   };
 }
