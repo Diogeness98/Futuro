@@ -81,6 +81,7 @@ export default async function SettingsPage() {
             <div><dt>Estoque baixo</dt><dd>≤ {inventoryConfig.lowStockThreshold} unidades</dd></div>
             <div><dt>TikTok orgs / sync</dt><dd>{tikTokShopConfig.syncOrganizationLimit}</dd></div>
             <div><dt>TikTok páginas / loja</dt><dd>{tikTokShopConfig.syncMaxPagesPerShop}</dd></div>
+            <div><dt>Catálogo TikTok</dt><dd>a cada {tikTokShopConfig.productSyncIntervalMinutes} min</dd></div>
           </dl>
         </section>
       </div>
