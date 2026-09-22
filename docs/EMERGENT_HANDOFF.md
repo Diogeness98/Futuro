@@ -163,16 +163,32 @@ Na primeira configuração real do TikTok, apenas inserir secrets e validar o fl
 
 A fila persistente e o worker já existem no código. Não reconstruir.
 
-Endpoint interno:
+Endpoints internos:
 
 ```text
 GET ou POST /api/internal/automation-worker
 Authorization: Bearer <AUTOMATION_CRON_SECRET>
+
+GET ou POST /api/internal/tiktok-sync
+Authorization: Bearer <AUTOMATION_CRON_SECRET>
 ```
 
-Configurar o scheduler do host para chamar esse endpoint periodicamente. O worker processa poucos itens por organização e respeita os mesmos limites Jev/GPT do restante do sistema.
+Configurar o scheduler do host para chamar:
+- `/api/internal/automation-worker` a cada 1 minuto;
+- `/api/internal/tiktok-sync` a cada 5 minutos.
 
-Recomendação inicial de produção: executar a cada minuto com `AUTOMATION_WORKER_ORG_LIMIT=5` e `AUTOMATION_WORKER_BATCH_SIZE=3`. Não aumentar esses valores durante a primeira validação real.
+O worker de automações processa poucos itens por organização e respeita os mesmos limites Jev/GPT do restante do sistema. O sync TikTok é sequencial por organização, sincroniza somente conexões ativas e isola falhas entre organizações.
+
+Valores iniciais:
+
+```env
+AUTOMATION_WORKER_ORG_LIMIT=5
+AUTOMATION_WORKER_BATCH_SIZE=3
+TIKTOK_SYNC_ORG_LIMIT=5
+TIKTOK_SYNC_MAX_PAGES_PER_SHOP=20
+```
+
+Não aumentar esses valores durante a primeira validação real.
 
 A fila possui:
 - `order.created` já conectado para pedidos manuais e novos pedidos TikTok;
