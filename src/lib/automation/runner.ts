@@ -76,6 +76,7 @@ export async function runAutomation(input: {
   const result = await executeAiTask(task, {
     allowOpenAI: budget.allowed,
     budgetReason: budget.reasons.join(" "),
+    openAiBudget: budget,
   });
 
   await persistAiDecision({
