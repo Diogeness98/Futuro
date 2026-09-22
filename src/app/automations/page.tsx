@@ -40,8 +40,12 @@ export default async function AutomationsPage() {
             <h2>Fila de automações</h2>
             <p className="muted-copy">Pedidos são salvos primeiro. IA roda depois e nunca bloqueia a operação principal.</p>
           </div>
-          <span className={queue.deadLetter > 0 ? "status" : "status ok"}>
-            {queue.deadLetter > 0 ? "Requer atenção" : "Saudável"}
+          <span className={queue.deadLetter > 0 || queue.review > 0 ? "status" : "status ok"}>
+            {queue.deadLetter > 0
+              ? "Requer atenção"
+              : queue.review > 0
+                ? "Revisão humana"
+                : "Saudável"}
           </span>
         </div>
 
@@ -50,6 +54,7 @@ export default async function AutomationsPage() {
           <QueueMetric label="Retry" value={queue.retryableFailed} />
           <QueueMetric label="Processando" value={queue.processing} />
           <QueueMetric label="Concluídas" value={queue.succeeded} />
+          <QueueMetric label="Revisão humana" value={queue.review} />
           <QueueMetric label="Falha definitiva" value={queue.deadLetter} />
         </div>
 
@@ -187,7 +192,7 @@ export default async function AutomationsPage() {
         <h2>Execuções recentes da fila</h2>
         <table>
           <thead>
-            <tr><th>Quando</th><th>Automação</th><th>Gatilho</th><th>Status</th><th>Tentativas</th><th>Resultado</th><th>Erro</th></tr>
+            <tr><th>Quando</th><th>Automação</th><th>Gatilho</th><th>Status</th><th>Tentativas</th><th>Resultado</th><th>Revisão</th><th>Erro</th></tr>
           </thead>
           <tbody>
             {recentExecutions.map((execution) => (
@@ -206,6 +211,19 @@ export default async function AutomationsPage() {
                       <summary>Ver</summary>
                       <pre>{JSON.stringify(execution.result, null, 2)}</pre>
                     </details>
+                  ) : "—"}
+                </td>
+                <td>
+                  {execution.status === "review" ? (
+                    <details className="review-control">
+                      <summary>Resolver</summary>
+                      <form className="mini-form" action={`/api/automations/executions/${execution.id}/review`} method="post">
+                        <input name="note" maxLength={1000} placeholder="Nota opcional da revisão" />
+                        <button className="secondary" type="submit">Marcar revisado</button>
+                      </form>
+                    </details>
+                  ) : execution.status === "reviewed" ? (
+                    <span className="readonly-note">Revisado</span>
                   ) : "—"}
                 </td>
                 <td className="truncate-cell">{execution.lastError ?? "—"}</td>
@@ -266,6 +284,6 @@ function formatDate(value: Date) {
 }
 
 function executionStatusClass(status: string) {
-  if (status === "succeeded" || status === "skipped") return "status ok";
+  if (status === "succeeded" || status === "skipped" || status === "reviewed") return "status ok";
   return "status";
 }
