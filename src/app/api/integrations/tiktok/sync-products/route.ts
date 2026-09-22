@@ -25,6 +25,8 @@ export async function POST(request: Request) {
         variants: summary.variants,
         pages: summary.pages,
         shops: summary.shops,
+        initialImport: summary.initialImport,
+        lowStockEventsQueued: summary.lowStockEventsQueued,
       },
     });
 
