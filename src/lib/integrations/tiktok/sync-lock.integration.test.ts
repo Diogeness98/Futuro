@@ -13,7 +13,7 @@ describeDb("TikTok sync lock integration", () => {
     });
   });
 
-  it("permite um único claim e libera depois", async () => {
+  it("permite um único claim e libera somente com o token dono", async () => {
     const organization = await db.organization.create({
       data: { name: "TikTok Lock Test" },
     });
@@ -31,22 +31,25 @@ describeDb("TikTok sync lock integration", () => {
     const first = await acquireTikTokSyncLock(organization.id);
     const second = await acquireTikTokSyncLock(organization.id);
 
-    expect(first).toBe(true);
-    expect(second).toBe(false);
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBeNull();
 
-    await releaseTikTokSyncLock(organization.id);
+    const wrongRelease = await releaseTikTokSyncLock(organization.id, "wrong-token");
+    expect(wrongRelease).toBe(false);
+
+    if (!first) throw new Error("Lock esperado no teste.");
+    const released = await releaseTikTokSyncLock(organization.id, first);
+    expect(released).toBe(true);
 
     const third = await acquireTikTokSyncLock(organization.id);
-    expect(third).toBe(true);
+    expect(third).toEqual(expect.any(String));
   });
 
-  it("recupera lock expirado", async () => {
+  it("recupera lock expirado sem permitir que o dono antigo libere o novo", async () => {
     const organization = await db.organization.create({
       data: { name: "TikTok Stale Lock Test" },
     });
     organizations.push(organization.id);
-
-    const stale = new Date(Date.now() - 30 * 60 * 1000);
 
     await db.integration.create({
       data: {
@@ -54,15 +57,38 @@ describeDb("TikTok sync lock integration", () => {
         provider: "tiktok_shop",
         status: "connected",
         config: { credentials: "test" },
-        syncLockedAt: stale,
       },
     });
 
-    const claimed = await acquireTikTokSyncLock(organization.id, {
+    const oldToken = await acquireTikTokSyncLock(organization.id);
+    expect(oldToken).toEqual(expect.any(String));
+    if (!oldToken) throw new Error("Lock inicial esperado no teste.");
+
+    await db.integration.updateMany({
+      where: {
+        organizationId: organization.id,
+        provider: "tiktok_shop",
+      },
+      data: {
+        syncLockedAt: new Date(Date.now() - 30 * 60 * 1000),
+      },
+    });
+
+    const newToken = await acquireTikTokSyncLock(organization.id, {
       staleMinutes: 15,
       now: new Date(),
     });
 
-    expect(claimed).toBe(true);
+    expect(newToken).toEqual(expect.any(String));
+    expect(newToken).not.toBe(oldToken);
+
+    const oldOwnerReleased = await releaseTikTokSyncLock(organization.id, oldToken);
+    expect(oldOwnerReleased).toBe(false);
+
+    const stillLocked = await acquireTikTokSyncLock(organization.id);
+    expect(stillLocked).toBeNull();
+
+    if (!newToken) throw new Error("Novo lock esperado no teste.");
+    expect(await releaseTikTokSyncLock(organization.id, newToken)).toBe(true);
   });
 });
