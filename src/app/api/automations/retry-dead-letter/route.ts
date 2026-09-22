@@ -6,6 +6,7 @@ import { retryDeadLetterExecutions } from "@/lib/automation/queue";
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (session.role !== "owner") return NextResponse.json({ error: "Apenas o proprietário pode executar esta ação de automação." }, { status: 403 });
 
   const result = await retryDeadLetterExecutions({
     organizationId: session.organizationId,
