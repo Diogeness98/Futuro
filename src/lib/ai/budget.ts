@@ -18,6 +18,13 @@ export interface OpenAiBudgetStatus extends OpenAiBudgetUsage {
   reasons: string[];
 }
 
+export interface OpenAiBudgetReservation {
+  allowed: boolean;
+  estimatedInputTokens: number;
+  reservedOutputTokens: number;
+  reasons: string[];
+}
+
 export function evaluateOpenAiBudget(
   usage: OpenAiBudgetUsage,
   limits = {
@@ -43,6 +50,41 @@ export function evaluateOpenAiBudget(
     limits,
     allowed: reasons.length === 0,
     reasons,
+  };
+}
+
+export function evaluateOpenAiReservation(
+  status: OpenAiBudgetStatus,
+  inputChars: number,
+  maxOutputTokens: number,
+  charsPerTokenEstimate = 3,
+): OpenAiBudgetReservation {
+  const divisor = Math.max(1, charsPerTokenEstimate);
+  const estimatedInputTokens = Math.max(1, Math.ceil(Math.max(0, inputChars) / divisor));
+  const reservedOutputTokens = Math.max(0, Math.floor(maxOutputTokens));
+  const reasons = [...status.reasons];
+
+  if (status.limits.calls > 0 && status.calls + 1 > status.limits.calls) {
+    reasons.push("Próxima chamada ultrapassaria o limite de chamadas OpenAI em 24h.");
+  }
+  if (
+    status.limits.inputTokens > 0 &&
+    status.inputTokens + estimatedInputTokens > status.limits.inputTokens
+  ) {
+    reasons.push("Entrada estimada da próxima chamada ultrapassaria o orçamento OpenAI.");
+  }
+  if (
+    status.limits.outputTokens > 0 &&
+    status.outputTokens + reservedOutputTokens > status.limits.outputTokens
+  ) {
+    reasons.push("Reserva de saída da próxima chamada ultrapassaria o orçamento OpenAI.");
+  }
+
+  return {
+    allowed: reasons.length === 0,
+    estimatedInputTokens,
+    reservedOutputTokens,
+    reasons: [...new Set(reasons)],
   };
 }
 
