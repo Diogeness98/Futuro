@@ -3,19 +3,47 @@ import { requireSession } from "@/lib/auth";
 import { aiConfig } from "@/lib/ai/config";
 import { automationRuntimeConfig } from "@/lib/automation/runtime-config";
 import { inventoryConfig } from "@/lib/inventory/config";
+import { evaluateRuntimeReadiness } from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const session = await requireSession();
+  const readiness = evaluateRuntimeReadiness();
 
   return (
     <AppShell active="Configurações" email={session.email}>
       <div className="eyebrow">Controle de custo</div>
       <h1>Configurações</h1>
-      <p className="lead">Visão segura das regras do roteador. Nenhum segredo é exibido.</p>
+      <p className="lead">Visão segura das regras do roteador e do preflight de produção. Nenhum segredo é exibido.</p>
 
-      <div className="settings-grid">
+      <section className="card readiness-card">
+        <div className="integration-head">
+          <div>
+            <h2>Preflight de produção</h2>
+            <p className="muted-copy">Verifica somente se a configuração necessária existe e tem formato válido. Conectividade real do banco é testada em /api/health.</p>
+          </div>
+          <span className={readiness.ready ? "status ok" : "status"}>
+            {readiness.ready ? "Pronto" : `${readiness.readyCount}/${readiness.totalCount} configurados`}
+          </span>
+        </div>
+
+        <div className="readiness-grid">
+          {readiness.checks.map((check) => (
+            <div className="readiness-item" key={check.id}>
+              <div className="integration-head">
+                <strong>{check.label}</strong>
+                <span className={check.ready ? "status ok" : "status"}>
+                  {check.ready ? "OK" : "Pendente"}
+                </span>
+              </div>
+              <small>{check.detail}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="settings-grid section">
         <section className="card">
           <h2>Prioridade de execução</h2>
           <ol className="policy-list">
