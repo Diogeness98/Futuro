@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
@@ -21,7 +22,24 @@ export async function POST(request: Request) {
     const raw = await bodyFromRequest(request);
     const input = z.object({ name: z.string().trim().min(1).max(160), sku: z.string().trim().max(80).optional().or(z.literal("")), price: z.any().optional(), priceCents: z.any().optional(), stock: z.any().optional() }).parse(raw);
     const priceCents = input.priceCents !== undefined ? Math.max(0, integer(input.priceCents)) : moneyToCents(input.price);
-    const product = await db.product.create({ data: { organizationId: session.organizationId, name: input.name, sku: input.sku || null, priceCents, stock: Math.max(0, integer(input.stock)) } });
+    const stock = Math.max(0, integer(input.stock));
+    const lowStock = shouldEmitLowStockEvent({
+      stock,
+      active: true,
+      threshold: inventoryConfig.lowStockThreshold,
+    });
+    const episodeId = lowStock ? randomUUID() : null;
+
+    let product = await db.product.create({
+      data: {
+        organizationId: session.organizationId,
+        name: input.name,
+        sku: input.sku || null,
+        priceCents,
+        stock,
+        lowStockEpisodeId: episodeId,
+      },
+    });
 
     await recordActivity({
       organizationId: session.organizationId,
@@ -32,16 +50,17 @@ export async function POST(request: Request) {
       metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
     });
 
-    if (shouldEmitLowStockEvent({
-      stock: product.stock,
-      active: product.active,
-      threshold: inventoryConfig.lowStockThreshold,
-    })) {
+    if (lowStock && episodeId) {
       try {
         await enqueueProductLowStockEvent({
           organizationId: session.organizationId,
           product,
           threshold: inventoryConfig.lowStockThreshold,
+          episodeId,
+        });
+        product = await db.product.update({
+          where: { id: product.id },
+          data: { lowStockEventAt: new Date() },
         });
       } catch (queueError) {
         console.error(
