@@ -3,5 +3,8 @@ import { clearSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
   await clearSession();
-  return NextResponse.redirect(new URL("/login", request.url), 303);
+
+  const response = NextResponse.redirect(new URL("/login", request.url), 303);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
 }
