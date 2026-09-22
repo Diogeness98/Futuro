@@ -18,7 +18,7 @@ export async function POST(
 
   const { id } = await context.params;
   const automation = await db.automation.findFirst({
-    where: { id, organizationId: session.organizationId },
+    where: { id, organizationId: session.organizationId, deletedAt: null },
   });
   if (!automation) return NextResponse.json({ error: "Automação não encontrada." }, { status: 404 });
 
@@ -26,7 +26,10 @@ export async function POST(
     const { intent } = actionSchema.parse(await bodyFromRequest(request));
 
     if (intent === "delete") {
-      await db.automation.delete({ where: { id } });
+      await db.automation.update({
+        where: { id },
+        data: { enabled: false, deletedAt: new Date() },
+      });
       await recordActivity({
         organizationId: session.organizationId,
         actorId: session.userId,
