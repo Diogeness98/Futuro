@@ -23,7 +23,7 @@ export default function RegisterPage() {
       <label>Nome<input name="name" required autoComplete="name" /></label>
       <label>Organização<input name="organizationName" required /></label>
       <label>E-mail<input name="email" type="email" required autoComplete="email" /></label>
-      <label>Senha<input name="password" type="password" minLength={8} required autoComplete="new-password" /></label>
+      <label>Senha<input name="password" type="password" minLength={12} required autoComplete="new-password" /><small>Use pelo menos 12 caracteres.</small></label>
       {error && <div className="error">{error}</div>}
       <button className="primary" disabled={loading}>{loading ? "Criando..." : "Criar conta"}</button>
     </form>
