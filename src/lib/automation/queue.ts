@@ -59,6 +59,7 @@ export async function enqueueAutomationEvents(input: {
     where: {
       organizationId: input.organizationId,
       enabled: true,
+      deletedAt: null,
     },
     select: {
       id: true,
@@ -173,13 +174,15 @@ export async function processAutomationQueue(input: {
     if (claimed.count !== 1) continue;
     summary.claimed += 1;
 
-    if (!candidate.automation.enabled) {
+    if (!candidate.automation.enabled || candidate.automation.deletedAt) {
       await db.automationEventExecution.update({
         where: { id: candidate.id },
         data: {
           status: "skipped",
           processedAt: new Date(),
-          lastError: "Automação foi desativada antes do processamento.",
+          lastError: candidate.automation.deletedAt
+            ? "Automação foi excluída antes do processamento."
+            : "Automação foi desativada antes do processamento.",
         },
       });
       summary.skipped += 1;
