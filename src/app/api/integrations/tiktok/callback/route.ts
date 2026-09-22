@@ -18,6 +18,11 @@ export async function GET(request: Request) {
     return NextResponse.redirect(destination);
   }
 
+  if (session.role !== "owner") {
+    destination.searchParams.set("tiktok", "owner_required");
+    return NextResponse.redirect(destination);
+  }
+
   const url = new URL(request.url);
   const returnedState = url.searchParams.get("state");
   const authCode = url.searchParams.get("code") ?? url.searchParams.get("auth_code");
