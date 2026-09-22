@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { enqueueAutomationEvents } from "@/lib/automation/queue";
 import { searchTikTokOrders } from "./client";
 import { normalizeTikTokOrder } from "./order-normalize";
 import { loadTikTokConnection, updateTikTokTokens } from "./storage";
@@ -15,6 +16,7 @@ export interface TikTokOrderSyncSummary {
   pages: number;
   shops: number;
   since: number;
+  automationEventsQueued: number;
 }
 
 export async function syncTikTokOrders(
@@ -57,6 +59,7 @@ export async function syncTikTokOrders(
     pages: 0,
     shops: shops.length,
     since,
+    automationEventsQueued: 0,
   };
 
   for (const shop of shops) {
@@ -69,6 +72,12 @@ export async function syncTikTokOrders(
         pageToken,
         pageSize: 100,
       });
+
+      const queueEvents: Array<{
+        entityType: string;
+        entityId: string;
+        payload: unknown;
+      }> = [];
 
       if (result.orders.length > 0) {
         const ids = result.orders.map((order) => String(order.id)).filter(Boolean);
@@ -86,7 +95,7 @@ export async function syncTikTokOrders(
           const normalized = normalizeTikTokOrder(order);
           if (!normalized.externalId) continue;
 
-          await db.order.upsert({
+          const persisted = await db.order.upsert({
             where: {
               organizationId_channel_externalId: {
                 organizationId,
@@ -108,8 +117,52 @@ export async function syncTikTokOrders(
           });
 
           summary.synced += 1;
-          if (existingIds.has(normalized.externalId)) summary.updated += 1;
-          else summary.created += 1;
+          if (existingIds.has(normalized.externalId)) {
+            summary.updated += 1;
+          } else {
+            summary.created += 1;
+            queueEvents.push({
+              entityType: "Order",
+              entityId: persisted.id,
+              payload: {
+                event: "order.created",
+                source: "tiktok_shop",
+                shop: {
+                  cipher: shop.cipher,
+                  code: shop.code,
+                  id: shop.id,
+                  name: shop.name,
+                  region: shop.region,
+                },
+                order: {
+                  id: persisted.id,
+                  externalId: persisted.externalId,
+                  channel: persisted.channel,
+                  status: persisted.status,
+                  totalCents: persisted.totalCents,
+                  currency: normalized.currency,
+                  createTime: normalized.createTime,
+                  updateTime: normalized.updateTime,
+                },
+              },
+            });
+          }
+        }
+      }
+
+      if (queueEvents.length > 0) {
+        try {
+          const queued = await enqueueAutomationEvents({
+            organizationId,
+            triggerType: "order.created",
+            events: queueEvents,
+          });
+          summary.automationEventsQueued += queued.events;
+        } catch (queueError) {
+          console.error(
+            "Pedidos TikTok sincronizados, mas falhou ao enfileirar automações:",
+            queueError instanceof Error ? queueError.message : "erro desconhecido",
+          );
         }
       }
 
