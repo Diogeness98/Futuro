@@ -13,6 +13,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const raw = await bodyFromRequest(request);
   const current = await db.product.findFirst({ where: { id, organizationId: session.organizationId } });
   if (!current) return NextResponse.json({ error: "Produto não encontrado." }, { status: 404 });
+  if (current.channel !== "manual") {
+    return NextResponse.json({ error: "Produtos sincronizados devem ser atualizados pela integração de origem." }, { status: 409 });
+  }
 
   const product = await db.product.update({ where: { id }, data: {
     name: raw.name !== undefined ? String(raw.name).trim() : undefined,
@@ -63,6 +66,9 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
   const { id } = await context.params;
   const current = await db.product.findFirst({ where: { id, organizationId: session.organizationId } });
   if (!current) return NextResponse.json({ error: "Produto não encontrado." }, { status: 404 });
+  if (current.channel !== "manual") {
+    return NextResponse.json({ error: "Produtos sincronizados não podem ser excluídos manualmente." }, { status: 409 });
+  }
 
   await db.product.delete({ where: { id } });
   await recordActivity({
