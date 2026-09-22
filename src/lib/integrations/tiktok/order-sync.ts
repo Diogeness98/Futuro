@@ -1,5 +1,5 @@
-import { db } from "@/lib/db";
-import { enqueueAutomationEvents } from "@/lib/automation/queue";
+import { db } from "../../db";
+import { enqueueAutomationEvents } from "../../automation/queue";
 import { searchTikTokOrders } from "./client";
 import { normalizeTikTokOrder } from "./order-normalize";
 import { shouldQueueTikTokOrderEvent } from "./sync-policy";
