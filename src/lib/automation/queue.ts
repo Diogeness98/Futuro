@@ -204,10 +204,12 @@ export async function processAutomationQueue(input: {
         context: candidate.event.payload,
       });
 
+      const skippedByCondition = isSkippedResult(runResult.result.result);
+
       await db.automationEventExecution.update({
         where: { id: candidate.id },
         data: {
-          status: "succeeded",
+          status: skippedByCondition ? "skipped" : "succeeded",
           processedAt: new Date(),
           lastError: null,
           result: toJson({
@@ -219,7 +221,9 @@ export async function processAutomationQueue(input: {
           }),
         },
       });
-      summary.succeeded += 1;
+
+      if (skippedByCondition) summary.skipped += 1;
+      else summary.succeeded += 1;
     } catch (error) {
       const message = errorMessage(error);
       await db.automationEventExecution.update({
@@ -486,6 +490,15 @@ function deduplicateEvents(events: QueueEventInput[]) {
 
 function toJson(value: unknown) {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function isSkippedResult(value: unknown) {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).skipped === true
+  );
 }
 
 function errorMessage(error: unknown) {
