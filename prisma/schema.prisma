@@ -86,6 +86,7 @@ model Order {
   channel        String       @default("manual")
   status         String       @default("pending")
   totalCents     Int          @default(0)
+  orderCreatedEventAt DateTime?
   items          OrderItem[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
