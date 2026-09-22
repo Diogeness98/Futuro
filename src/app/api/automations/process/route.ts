@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       metadata: {
         claimed: summary.claimed,
         succeeded: summary.succeeded,
+        review: summary.review,
         failed: summary.failed,
         skipped: summary.skipped,
       },
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     const destination = new URL("/automations", request.url);
     destination.searchParams.set("queue", "processed");
     destination.searchParams.set("succeeded", String(summary.succeeded));
+    destination.searchParams.set("review", String(summary.review));
     destination.searchParams.set("failed", String(summary.failed));
     return NextResponse.redirect(destination, 303);
   } catch (error) {
