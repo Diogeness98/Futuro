@@ -126,7 +126,9 @@ O painel **IA** possui uma ferramenta de teste que não expõe a chave ao navega
 
 ## TikTok Shop
 
-Depois de configurar App Key, App Secret, Seller Authorization Link e a chave de criptografia:
+Depois de configurar App Key, App Secret, Seller Authorization Link e a chave de criptografia, configure o callback no Partner Center como `<APP_URL>/api/integrations/tiktok/callback`.
+
+Então:
 
 1. entre em **Integrações**;
 2. clique em **Conectar TikTok Shop**;
