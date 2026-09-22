@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
+import { enqueueProductLowStockEvent } from "@/lib/automation/events";
+import { inventoryConfig } from "@/lib/inventory/config";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -28,6 +30,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     entityId: product.id,
     metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
   });
+
+  const enteredLowStock =
+    product.active &&
+    product.stock <= inventoryConfig.lowStockThreshold &&
+    (current.stock > inventoryConfig.lowStockThreshold || !current.active);
+
+  if (enteredLowStock) {
+    try {
+      await enqueueProductLowStockEvent({
+        organizationId: session.organizationId,
+        product,
+        threshold: inventoryConfig.lowStockThreshold,
+      });
+    } catch (queueError) {
+      console.error(
+        "Produto atualizado, mas falhou ao enfileirar estoque baixo:",
+        queueError instanceof Error ? queueError.message : "erro desconhecido",
+      );
+    }
+  }
 
   return NextResponse.json({ product });
 }
