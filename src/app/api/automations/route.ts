@@ -35,6 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (session.role !== "owner") return NextResponse.json({ error: "Apenas o proprietário pode gerenciar automações." }, { status: 403 });
 
   try {
     const input = automationSchema.parse(await bodyFromRequest(request));
