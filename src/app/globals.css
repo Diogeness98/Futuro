@@ -149,3 +149,7 @@ th { color: var(--muted); font-weight: 600; }
 
 .queue-result summary { cursor: pointer; color: var(--accent); font-size: 12px; }
 .queue-result pre { margin: 7px 0 0; max-width: 360px; max-height: 220px; overflow: auto; background: #0a0d10; border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 11px; white-space: pre-wrap; word-break: break-word; }
+
+.condition-box { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.condition-box > strong { font-size: 13px; }
+.condition-box > small, .automation-condition-summary { color: var(--muted); line-height: 1.4; }
