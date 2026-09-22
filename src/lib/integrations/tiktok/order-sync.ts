@@ -1,6 +1,8 @@
 import { db } from "../../db";
 import { enqueueAutomationEvents } from "../../automation/queue";
 import { searchTikTokOrders } from "./client";
+import { tikTokShopConfig } from "./config";
+import { syncTikTokOrderDetailBacklog } from "./order-detail-sync";
 import { normalizeTikTokOrder } from "./order-normalize";
 import { shouldQueueTikTokOrderEvent } from "./sync-policy";
 import { acquireTikTokSyncLock, releaseTikTokSyncLock } from "./sync-lock";
@@ -20,11 +22,16 @@ export interface TikTokOrderSyncSummary {
   since: number;
   initialImport: boolean;
   automationEventsQueued: number;
+  detailBatches: number;
+  detailsRequested: number;
+  detailsSynced: number;
+  detailFailures: number;
+  itemsSynced: number;
 }
 
 export async function syncTikTokOrders(
   organizationId: string,
-  options: { maxPagesPerShop?: number } = {},
+  options: { maxPagesPerShop?: number; detailMaxBatches?: number } = {},
 ): Promise<TikTokOrderSyncSummary> {
   const connection = await loadTikTokConnection(organizationId);
   if (!connection) throw new Error("TikTok Shop não está conectado.");
@@ -71,6 +78,11 @@ export async function syncTikTokOrders(
       since,
       initialImport,
       automationEventsQueued: 0,
+      detailBatches: 0,
+      detailsRequested: 0,
+      detailsSynced: 0,
+      detailFailures: 0,
+      itemsSynced: 0,
     };
 
     for (const shop of shops) {
@@ -100,13 +112,29 @@ export async function syncTikTokOrders(
               channel: CHANNEL,
               externalId: { in: ids },
             },
-            select: { externalId: true },
+            select: {
+              externalId: true,
+              externalUpdatedAt: true,
+              detailsSyncedAt: true,
+            },
           });
-          const existingIds = new Set(existing.map((order) => order.externalId).filter(Boolean));
+          const existingByExternalId = new Map(
+            existing
+              .filter((order) => Boolean(order.externalId))
+              .map((order) => [order.externalId as string, order]),
+          );
 
           for (const order of result.orders) {
             const normalized = normalizeTikTokOrder(order);
             if (!normalized.externalId) continue;
+
+            const previous = existingByExternalId.get(normalized.externalId);
+            const externalUpdatedAt = unixSecondsToDate(normalized.updateTime);
+            const detailIsStale = !previous ||
+              !previous.detailsSyncedAt ||
+              (externalUpdatedAt !== null &&
+                (!previous.externalUpdatedAt ||
+                  externalUpdatedAt.getTime() > previous.externalUpdatedAt.getTime()));
 
             const persisted = await db.order.upsert({
               where: {
@@ -124,6 +152,8 @@ export async function syncTikTokOrders(
                 totalCents: normalized.totalCents,
                 sourceShopCipher: shop.cipher,
                 sourceShopName: shop.name ?? null,
+                externalUpdatedAt,
+                detailsSyncedAt: null,
                 orderCreatedEventAt: baselineAt,
               },
               update: {
@@ -131,12 +161,14 @@ export async function syncTikTokOrders(
                 totalCents: normalized.totalCents,
                 sourceShopCipher: shop.cipher,
                 sourceShopName: shop.name ?? null,
+                ...(externalUpdatedAt ? { externalUpdatedAt } : {}),
+                ...(detailIsStale ? { detailsSyncedAt: null } : {}),
                 ...(initialImport ? { orderCreatedEventAt: baselineAt } : {}),
               },
             });
 
             summary.synced += 1;
-            if (existingIds.has(normalized.externalId)) summary.updated += 1;
+            if (previous) summary.updated += 1;
             else summary.created += 1;
 
             if (shouldQueueTikTokOrderEvent({
@@ -210,6 +242,19 @@ export async function syncTikTokOrders(
       }
     }
 
+    const detailSummary = await syncTikTokOrderDetailBacklog({
+      organizationId,
+      accessToken,
+      shops,
+      maxBatches: options.detailMaxBatches ?? tikTokShopConfig.orderDetailMaxBatchesPerSync,
+    });
+
+    summary.detailBatches = detailSummary.batches;
+    summary.detailsRequested = detailSummary.requested;
+    summary.detailsSynced = detailSummary.synced;
+    summary.detailFailures = detailSummary.failedBatches;
+    summary.itemsSynced = detailSummary.itemsSynced;
+
     return summary;
   } finally {
     await releaseTikTokSyncLock(organizationId, lockToken).catch((error) => {
@@ -219,6 +264,11 @@ export async function syncTikTokOrders(
       );
     });
   }
+}
+
+function unixSecondsToDate(value?: number) {
+  if (!value || !Number.isFinite(value) || value <= 0) return null;
+  return new Date(value * 1000);
 }
 
 function shouldRefresh(accessTokenExpiresAt?: number) {
