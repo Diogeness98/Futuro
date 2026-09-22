@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { aiConfig } from "./config";
 import { routeTask } from "./policy";
 
 describe("routeTask", () => {
@@ -19,6 +20,7 @@ describe("routeTask", () => {
   it("não pula direto para Work em ação externa", () => {
     const result = routeTask({ input: "entre no site e baixe o arquivo" });
     expect(result.provider).toBe("openai");
+    expect(result.model).toBe(aiConfig.openai.defaultModel);
     expect(result.workRecommended).toBe(true);
   });
 });
