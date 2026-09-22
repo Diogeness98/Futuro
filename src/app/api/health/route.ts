@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, max-age=0",
+};
+
 export async function GET() {
   const timestamp = new Date().toISOString();
 
@@ -20,6 +24,8 @@ export async function GET() {
       version: "0.2.0",
       database: "ready",
       timestamp,
+    }, {
+      headers: NO_STORE_HEADERS,
     });
   } catch {
     return NextResponse.json({
@@ -28,6 +34,9 @@ export async function GET() {
       version: "0.2.0",
       database: "unavailable",
       timestamp,
-    }, { status: 503 });
+    }, {
+      status: 503,
+      headers: NO_STORE_HEADERS,
+    });
   }
 }
