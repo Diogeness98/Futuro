@@ -329,18 +329,34 @@ async function finalizeEvent(eventId: string) {
 async function recoverStaleClaims(organizationId: string) {
   const staleBefore = new Date(Date.now() - 10 * 60 * 1000);
 
-  await db.automationEventExecution.updateMany({
+  const stale = await db.automationEventExecution.findMany({
     where: {
       event: { organizationId },
       status: "processing",
       startedAt: { lt: staleBefore },
-      attempts: { lt: MAX_ATTEMPTS },
+    },
+    select: {
+      id: true,
+      eventId: true,
+    },
+  });
+
+  if (stale.length === 0) return;
+
+  await db.automationEventExecution.updateMany({
+    where: {
+      id: { in: stale.map((execution) => execution.id) },
+      status: "processing",
     },
     data: {
       status: "failed",
       lastError: "Execução recuperada após claim expirado.",
     },
   });
+
+  for (const eventId of [...new Set(stale.map((execution) => execution.eventId))]) {
+    await finalizeEvent(eventId);
+  }
 }
 
 function deduplicateEvents(events: QueueEventInput[]) {
