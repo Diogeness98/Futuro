@@ -110,7 +110,10 @@ export async function syncTikTokProducts(
 
           for (const product of normalized) {
             const previous = existingByExternalId.get(product.externalId);
-            let persisted = await persistTikTokProduct(organizationId, product);
+            let persisted = await persistTikTokProduct(organizationId, product, {
+              cipher: shop.cipher,
+              name: shop.name ?? null,
+            });
 
             summary.synced += 1;
             summary.variants += product.variants.length;
@@ -218,6 +221,7 @@ export async function syncTikTokProducts(
 export async function persistTikTokProduct(
   organizationId: string,
   product: NormalizedTikTokProduct,
+  sourceShop?: { cipher: string; name?: string | null },
 ) {
   return db.$transaction(async (tx) => {
     const persisted = await tx.product.upsert({
@@ -240,6 +244,8 @@ export async function persistTikTokProduct(
         active: product.active,
         externalStatus: product.externalStatus,
         externalUpdatedAt: product.externalUpdatedAt,
+        sourceShopCipher: sourceShop?.cipher,
+        sourceShopName: sourceShop?.name ?? null,
       },
       update: {
         sku: product.sku,
@@ -250,6 +256,8 @@ export async function persistTikTokProduct(
         active: product.active,
         externalStatus: product.externalStatus,
         externalUpdatedAt: product.externalUpdatedAt,
+        sourceShopCipher: sourceShop?.cipher,
+        sourceShopName: sourceShop?.name ?? null,
       },
     });
 
