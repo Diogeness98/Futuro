@@ -1,6 +1,9 @@
 import { db } from "../../db";
 import { searchTikTokProducts } from "./client";
-import { normalizeTikTokProduct } from "./product-normalize";
+import {
+  normalizeTikTokProduct,
+  type NormalizedTikTokProduct,
+} from "./product-normalize";
 import { acquireTikTokSyncLock, releaseTikTokSyncLock } from "./sync-lock";
 import { loadTikTokConnection, updateTikTokTokens } from "./storage";
 import { refreshTikTokAccessToken } from "./tokens";
@@ -78,76 +81,7 @@ export async function syncTikTokProducts(
           const existingIds = new Set(existing.map((product) => product.externalId).filter(Boolean));
 
           for (const product of normalized) {
-            await db.$transaction(async (tx) => {
-              const persisted = await tx.product.upsert({
-                where: {
-                  organizationId_channel_externalId: {
-                    organizationId,
-                    channel: CHANNEL,
-                    externalId: product.externalId,
-                  },
-                },
-                create: {
-                  organizationId,
-                  channel: CHANNEL,
-                  externalId: product.externalId,
-                  sku: product.sku,
-                  name: product.name,
-                  priceCents: product.priceCents,
-                  currency: product.currency,
-                  stock: product.stock,
-                  active: product.active,
-                  externalStatus: product.externalStatus,
-                  externalUpdatedAt: product.externalUpdatedAt,
-                },
-                update: {
-                  sku: product.sku,
-                  name: product.name,
-                  priceCents: product.priceCents,
-                  currency: product.currency,
-                  stock: product.stock,
-                  active: product.active,
-                  externalStatus: product.externalStatus,
-                  externalUpdatedAt: product.externalUpdatedAt,
-                },
-              });
-
-              const variantIds = product.variants.map((variant) => variant.externalId);
-
-              for (const variant of product.variants) {
-                await tx.productVariant.upsert({
-                  where: {
-                    productId_externalId: {
-                      productId: persisted.id,
-                      externalId: variant.externalId,
-                    },
-                  },
-                  create: {
-                    productId: persisted.id,
-                    externalId: variant.externalId,
-                    sellerSku: variant.sellerSku,
-                    priceCents: variant.priceCents,
-                    currency: variant.currency,
-                    stock: variant.stock,
-                  },
-                  update: {
-                    sellerSku: variant.sellerSku,
-                    priceCents: variant.priceCents,
-                    currency: variant.currency,
-                    stock: variant.stock,
-                  },
-                });
-              }
-
-              await tx.productVariant.deleteMany({
-                where: {
-                  productId: persisted.id,
-                  ...(variantIds.length > 0
-                    ? { externalId: { notIn: variantIds } }
-                    : {}),
-                },
-              });
-            });
+            await persistTikTokProduct(organizationId, product);
 
             summary.synced += 1;
             summary.variants += product.variants.length;
@@ -177,6 +111,87 @@ export async function syncTikTokProducts(
       );
     });
   }
+}
+
+export async function persistTikTokProduct(
+  organizationId: string,
+  product: NormalizedTikTokProduct,
+) {
+  return db.$transaction(async (tx) => {
+    const persisted = await tx.product.upsert({
+      where: {
+        organizationId_channel_externalId: {
+          organizationId,
+          channel: CHANNEL,
+          externalId: product.externalId,
+        },
+      },
+      create: {
+        organizationId,
+        channel: CHANNEL,
+        externalId: product.externalId,
+        sku: product.sku,
+        name: product.name,
+        priceCents: product.priceCents,
+        currency: product.currency,
+        stock: product.stock,
+        active: product.active,
+        externalStatus: product.externalStatus,
+        externalUpdatedAt: product.externalUpdatedAt,
+      },
+      update: {
+        sku: product.sku,
+        name: product.name,
+        priceCents: product.priceCents,
+        currency: product.currency,
+        stock: product.stock,
+        active: product.active,
+        externalStatus: product.externalStatus,
+        externalUpdatedAt: product.externalUpdatedAt,
+      },
+    });
+
+    const variantIds = product.variants.map((variant) => variant.externalId);
+
+    for (const variant of product.variants) {
+      await tx.productVariant.upsert({
+        where: {
+          productId_externalId: {
+            productId: persisted.id,
+            externalId: variant.externalId,
+          },
+        },
+        create: {
+          productId: persisted.id,
+          externalId: variant.externalId,
+          sellerSku: variant.sellerSku,
+          priceCents: variant.priceCents,
+          currency: variant.currency,
+          stock: variant.stock,
+        },
+        update: {
+          sellerSku: variant.sellerSku,
+          priceCents: variant.priceCents,
+          currency: variant.currency,
+          stock: variant.stock,
+        },
+      });
+    }
+
+    await tx.productVariant.deleteMany({
+      where: {
+        productId: persisted.id,
+        ...(variantIds.length > 0
+          ? { externalId: { notIn: variantIds } }
+          : {}),
+      },
+    });
+
+    return tx.product.findUniqueOrThrow({
+      where: { id: persisted.id },
+      include: { variants: { orderBy: { externalId: "asc" } } },
+    });
+  });
 }
 
 function shouldRefresh(accessTokenExpiresAt?: number) {
