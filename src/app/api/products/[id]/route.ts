@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -17,7 +18,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Produtos sincronizados devem ser atualizados pela integração de origem." }, { status: 409 });
   }
 
-  const product = await db.product.update({ where: { id }, data: {
+  let product = await db.product.update({ where: { id }, data: {
     name: raw.name !== undefined ? String(raw.name).trim() : undefined,
     sku: raw.sku !== undefined ? (String(raw.sku).trim() || null) : undefined,
     stock: raw.stock !== undefined ? Math.max(0, integer(raw.stock)) : undefined,
@@ -34,6 +35,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
   });
 
+  const isLowStock = product.active && product.stock <= inventoryConfig.lowStockThreshold;
   const enteredLowStock = shouldEmitLowStockEvent({
     stock: product.stock,
     active: product.active,
@@ -42,18 +44,49 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     previousActive: current.active,
   });
 
-  if (enteredLowStock) {
-    try {
-      await enqueueProductLowStockEvent({
-        organizationId: session.organizationId,
-        product,
-        threshold: inventoryConfig.lowStockThreshold,
+  if (!isLowStock) {
+    if (product.lowStockEpisodeId || product.lowStockEventAt) {
+      product = await db.product.update({
+        where: { id: product.id },
+        data: {
+          lowStockEpisodeId: null,
+          lowStockEventAt: null,
+        },
       });
-    } catch (queueError) {
-      console.error(
-        "Produto atualizado, mas falhou ao enfileirar estoque baixo:",
-        queueError instanceof Error ? queueError.message : "erro desconhecido",
-      );
+    }
+  } else {
+    const shouldRetryUndelivered = Boolean(
+      product.lowStockEpisodeId && !product.lowStockEventAt,
+    );
+
+    if (enteredLowStock || shouldRetryUndelivered) {
+      const episodeId = product.lowStockEpisodeId ?? randomUUID();
+
+      if (!product.lowStockEpisodeId) {
+        product = await db.product.update({
+          where: { id: product.id },
+          data: { lowStockEpisodeId: episodeId },
+        });
+      }
+
+      try {
+        await enqueueProductLowStockEvent({
+          organizationId: session.organizationId,
+          product,
+          threshold: inventoryConfig.lowStockThreshold,
+          episodeId,
+        });
+
+        product = await db.product.update({
+          where: { id: product.id },
+          data: { lowStockEventAt: new Date() },
+        });
+      } catch (queueError) {
+        console.error(
+          "Produto atualizado, mas falhou ao enfileirar estoque baixo:",
+          queueError instanceof Error ? queueError.message : "erro desconhecido",
+        );
+      }
     }
   }
 
