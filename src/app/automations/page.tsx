@@ -101,6 +101,14 @@ export default async function AutomationsPage() {
               <input name="jevOptions" defaultValue="processar,revisar" placeholder="processar,revisar" />
               <small>Separadas por vírgula. Usadas somente quando a ação é Jev.</small>
             </label>
+            <label>Critérios do Jev
+              <textarea
+                name="jevCriteria"
+                rows={4}
+                defaultValue={"processar: Evento normal, sem exceções operacionais.\nrevisar: Há risco, inconsistência ou informação insuficiente."}
+              />
+              <small>Uma linha por opção no formato opção: descrição. Critérios claros ajudam o Jev a resolver sem GPT.</small>
+            </label>
             <label className="check-row"><input name="enabled" type="checkbox" /> Ativar para testes e eventos novos</label>
             <button className="primary">Criar automação</button>
           </form>
