@@ -4,18 +4,14 @@ import { getOpenAiBudgetStatus } from "../ai/budget";
 import { executeAiTask } from "../ai/router";
 import type { AiExecutionResult, AiTask } from "../ai/types";
 import { db } from "../db";
-import { parseAutomationAction, parseAutomationTrigger } from "./config";
+import { evaluateAutomationConditions, parseAutomationAction, parseAutomationConditions, parseAutomationTrigger } from "./config";
 
 export interface AutomationRunResult {
   automationId: string;
   automationName: string;
   triggerType: string;
   actionType: string;
-  result: AiExecutionResult | {
-    provider: "code";
-    result: Record<string, unknown>;
-    manualReview: true;
-  };
+  result: AiExecutionResult;
 }
 
 export async function runAutomation(input: {
@@ -37,17 +33,54 @@ export async function runAutomation(input: {
 
   const trigger = parseAutomationTrigger(automation.trigger);
   const action = parseAutomationAction(automation.action);
+  const conditions = parseAutomationConditions(automation.conditions);
+  const conditionResult = evaluateAutomationConditions(input.context, conditions);
   const contextText = serializeContext(input.context);
 
+  if (!conditionResult.matched) {
+    const result: AiExecutionResult = {
+      provider: "code",
+      result: {
+        skipped: true,
+        conditionMatched: false,
+        reason: conditionResult.reason,
+      },
+      manualReview: false,
+      workRecommended: false,
+    };
+
+    await recordActivity({
+      organizationId: input.organizationId,
+      actorId: input.actorId,
+      actorType: input.actorId ? "user" : "system",
+      action: "automation.condition_skipped",
+      entityType: "Automation",
+      entityId: automation.id,
+      metadata: {
+        automationName: automation.name,
+        triggerType: trigger.type,
+        reason: conditionResult.reason,
+      },
+    });
+
+    return {
+      automationId: automation.id,
+      automationName: automation.name,
+      triggerType: trigger.type,
+      actionType: action.type,
+      result,
+    };
+  }
+
   if (action.type === "manual.review") {
-    const result = {
-      provider: "code" as const,
+    const result: AiExecutionResult = {
+      provider: "code",
       result: {
         queuedForManualReview: true,
         instruction: action.instruction ?? null,
         context: contextText.slice(0, 1000),
       },
-      manualReview: true as const,
+      manualReview: true,
     };
 
     await recordActivity({
