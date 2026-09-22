@@ -163,14 +163,19 @@ Gatilhos conectados:
 - `order.created` para pedidos manuais e novos pedidos TikTok;
 - `product.low_stock` quando o estoque cruza o limiar configurado.
 
-O worker interno é:
+Os schedulers internos são:
 
 ```text
 GET/POST /api/internal/automation-worker
 Authorization: Bearer <AUTOMATION_CRON_SECRET>
+
+GET/POST /api/internal/tiktok-sync
+Authorization: Bearer <AUTOMATION_CRON_SECRET>
 ```
 
-O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados e dead-letter com retry manual pelo painel.
+Cadência inicial recomendada: automações a cada 1 minuto e TikTok Shop a cada 5 minutos.
+
+O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados, revisão humana explícita e dead-letter com retry manual pelo painel.
 
 ## Emergent
 
