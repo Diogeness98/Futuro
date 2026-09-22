@@ -46,7 +46,10 @@ export default async function OrdersPage() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td><span className={order.channel === "tiktok_shop" ? "status ok" : "status"}>{channelLabel(order.channel)}</span></td>
+                  <td>
+                    <span className={order.channel === "tiktok_shop" ? "status ok" : "status"}>{channelLabel(order.channel)}</span>
+                    {order.sourceShopName && <small className="table-subline">{order.sourceShopName}</small>}
+                  </td>
                   <td>{order.customer?.name ?? order.externalId ?? "—"}</td>
                   <td>{formatStatus(order.status)}</td>
                   <td>{formatMoney(order.totalCents)}</td>
