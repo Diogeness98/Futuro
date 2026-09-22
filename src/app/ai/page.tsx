@@ -77,7 +77,9 @@ export default async function AiPage() {
       </section>
 
       <div className="section">
-        <AiTestForm />
+        {session.role === "owner"
+          ? <AiTestForm />
+          : <section className="card"><p className="empty">Somente o proprietário pode executar testes manuais de IA.</p></section>}
       </div>
 
       <section className="section card table-card">
