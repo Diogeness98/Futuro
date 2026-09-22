@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
+import { enqueueProductLowStockEvent } from "@/lib/automation/events";
+import { inventoryConfig } from "@/lib/inventory/config";
 
 export async function GET() {
   const session = await getSession();
@@ -29,6 +31,21 @@ export async function POST(request: Request) {
       entityId: product.id,
       metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
     });
+
+    if (product.active && product.stock <= inventoryConfig.lowStockThreshold) {
+      try {
+        await enqueueProductLowStockEvent({
+          organizationId: session.organizationId,
+          product,
+          threshold: inventoryConfig.lowStockThreshold,
+        });
+      } catch (queueError) {
+        console.error(
+          "Produto criado, mas falhou ao enfileirar estoque baixo:",
+          queueError instanceof Error ? queueError.message : "erro desconhecido",
+        );
+      }
+    }
 
     if ((request.headers.get("content-type") ?? "").includes("application/json")) return NextResponse.json({ product }, { status: 201 });
     return NextResponse.redirect(new URL("/products", request.url), 303);
