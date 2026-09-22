@@ -8,8 +8,20 @@ export const dynamic = "force-dynamic";
 export default async function OrdersPage() {
   const session = await requireSession();
   const [orders, customers] = await Promise.all([
-    db.order.findMany({ where: { organizationId: session.organizationId }, include: { customer: true }, orderBy: { createdAt: "desc" }, take: 100 }),
-    db.customer.findMany({ where: { organizationId: session.organizationId }, orderBy: { name: "asc" }, take: 200 }),
+    db.order.findMany({
+      where: { organizationId: session.organizationId },
+      include: {
+        customer: true,
+        _count: { select: { items: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    db.customer.findMany({
+      where: { organizationId: session.organizationId },
+      orderBy: { name: "asc" },
+      take: 200,
+    }),
   ]);
 
   return (
@@ -42,7 +54,17 @@ export default async function OrdersPage() {
         <section className="card table-card">
           <h2>Pedidos recentes</h2>
           <table>
-            <thead><tr><th>Canal</th><th>Cliente / ID</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Canal</th>
+                <th>Cliente / ID</th>
+                <th>Status</th>
+                <th>Itens</th>
+                <th>Fiscal</th>
+                <th>Total</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id}>
@@ -52,6 +74,8 @@ export default async function OrdersPage() {
                   </td>
                   <td>{order.customer?.name ?? order.externalId ?? "—"}</td>
                   <td>{formatStatus(order.status)}</td>
+                  <td>{order.channel === "tiktok_shop" && !order.detailsSyncedAt ? "…" : order._count.items || "—"}</td>
+                  <td>{invoiceLabel(order.channel, order.detailsSyncedAt, order.needUploadInvoice)}</td>
                   <td>{formatMoney(order.totalCents)}</td>
                   <td>
                     <OrderActions
@@ -84,4 +108,17 @@ function channelLabel(channel: string) {
 
 function formatStatus(status: string) {
   return status.replaceAll("_", " ");
+}
+
+function invoiceLabel(
+  channel: string,
+  detailsSyncedAt: Date | null,
+  value: string | null,
+) {
+  if (channel !== "tiktok_shop") return "—";
+  if (!detailsSyncedAt) return "Aguardando";
+  if (value === "NEED_INVOICE") return "Nota necessária";
+  if (value === "INVOICE_UPLOADED") return "Nota enviada";
+  if (value === "NO_NEED") return "Não exige";
+  return value ?? "—";
 }
