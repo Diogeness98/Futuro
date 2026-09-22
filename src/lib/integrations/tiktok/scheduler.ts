@@ -12,6 +12,11 @@ export interface TikTokScheduledSyncSummary {
   ordersCreated: number;
   ordersUpdated: number;
   automationEventsQueued: number;
+  orderDetailBatches: number;
+  orderDetailsRequested: number;
+  orderDetailsSynced: number;
+  orderDetailFailures: number;
+  orderItemsSynced: number;
   productSyncAttempted: number;
   productSyncSucceeded: number;
   productSyncFailed: number;
@@ -55,6 +60,11 @@ export async function syncConnectedTikTokOrganizations(input: {
     ordersCreated: 0,
     ordersUpdated: 0,
     automationEventsQueued: 0,
+    orderDetailBatches: 0,
+    orderDetailsRequested: 0,
+    orderDetailsSynced: 0,
+    orderDetailFailures: 0,
+    orderItemsSynced: 0,
     productSyncAttempted: 0,
     productSyncSucceeded: 0,
     productSyncFailed: 0,
@@ -76,6 +86,11 @@ export async function syncConnectedTikTokOrganizations(input: {
       summary.ordersCreated += result.created;
       summary.ordersUpdated += result.updated;
       summary.automationEventsQueued += result.automationEventsQueued;
+      summary.orderDetailBatches += result.detailBatches;
+      summary.orderDetailsRequested += result.detailsRequested;
+      summary.orderDetailsSynced += result.detailsSynced;
+      summary.orderDetailFailures += result.detailFailures;
+      summary.orderItemsSynced += result.itemsSynced;
 
       await db.integration.update({
         where: { id: connection.id },
@@ -97,6 +112,11 @@ export async function syncConnectedTikTokOrganizations(input: {
           shops: result.shops,
           initialImport: result.initialImport,
           automationEventsQueued: result.automationEventsQueued,
+          detailBatches: result.detailBatches,
+          detailsRequested: result.detailsRequested,
+          detailsSynced: result.detailsSynced,
+          detailFailures: result.detailFailures,
+          itemsSynced: result.itemsSynced,
         }),
       });
     } catch (error) {
