@@ -39,11 +39,12 @@ O repositório `Diogeness98/Futuro` é a fonte de verdade.
 3. Configurar PostgreSQL.
 4. Configurar variáveis de ambiente.
 5. Gerar Prisma Client.
-6. Aplicar schema ao banco.
-7. Executar typecheck.
-8. Executar testes.
-9. Executar build.
-10. Iniciar aplicação.
+6. Aplicar as migrações versionadas com `npm run db:deploy`.
+7. Confirmar com `npm run db:status`.
+8. Executar typecheck.
+9. Executar testes.
+10. Executar build.
+11. Iniciar aplicação.
 
 Não adicionar funcionalidades durante esta tarefa.
 
@@ -228,6 +229,8 @@ A tarefa só é considerada concluída quando:
 - página de Logs abre;
 - página de Configurações abre;
 - `/api/health` responde;
+- `npm run db:deploy` passa em banco PostgreSQL limpo;
+- `npm run db:status` informa schema atualizado;
 - `npm run typecheck` passa;
 - `npm test` passa;
 - `npm run build` passa.
@@ -239,6 +242,8 @@ A tarefa só é considerada concluída quando:
 - não trocar autenticação;
 - não trocar banco;
 - não trocar ORM;
+- não usar `prisma db push` no deploy de produção;
+- não editar manualmente as tabelas criadas pelas migrações;
 - não adicionar biblioteca de UI;
 - não adicionar analytics;
 - não criar agentes adicionais;
@@ -262,3 +267,20 @@ Somente após todos os critérios básicos passarem:
 11. deploy de produção.
 
 Após cada etapa bem-sucedida, parar e salvar um checkpoint no GitHub.
+
+
+## Banco em produção
+
+O repositório possui migrações Prisma versionadas em `prisma/migrations`.
+
+Para banco novo:
+
+```bash
+npm install
+npm run db:deploy
+npm run db:status
+```
+
+Não usar `prisma db push` em produção.
+
+Se o ambiente já tiver um banco antigo criado manualmente ou por `db push`, não aplicar a migração inicial cegamente. Criar um banco limpo para a primeira implantação é o caminho preferido nesta fase; caso seja necessário preservar dados existentes, fazer baseline controlado antes de `migrate deploy`.
