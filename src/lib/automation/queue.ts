@@ -197,7 +197,7 @@ export async function processAutomationQueue(input: {
     }
 
     try {
-      await runAutomation({
+      const runResult = await runAutomation({
         automationId: candidate.automationId,
         organizationId: input.organizationId,
         actorId: input.actorId,
@@ -210,6 +210,13 @@ export async function processAutomationQueue(input: {
           status: "succeeded",
           processedAt: new Date(),
           lastError: null,
+          result: toJson({
+            provider: runResult.result.provider,
+            result: runResult.result.result,
+            confidence: "confidence" in runResult.result ? runResult.result.confidence ?? null : null,
+            manualReview: runResult.result.manualReview ?? false,
+            escalated: "escalated" in runResult.result ? runResult.result.escalated ?? false : false,
+          }),
         },
       });
       summary.succeeded += 1;
@@ -326,6 +333,7 @@ export async function retryDeadLetterExecutions(input: {
         lastError: null,
         startedAt: null,
         processedAt: null,
+        result: Prisma.JsonNull,
       },
     }),
     db.automationEvent.updateMany({
