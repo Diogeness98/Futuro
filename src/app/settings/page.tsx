@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { aiConfig } from "@/lib/ai/config";
 import { automationRuntimeConfig } from "@/lib/automation/runtime-config";
 import { inventoryConfig } from "@/lib/inventory/config";
+import { tikTokShopConfig } from "@/lib/integrations/tiktok/config";
 import { evaluateRuntimeReadiness } from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,8 @@ export default async function SettingsPage() {
             <div><dt>Organizações por ciclo</dt><dd>{automationRuntimeConfig.organizationLimit}</dd></div>
             <div><dt>Eventos por organização</dt><dd>{automationRuntimeConfig.batchSize}</dd></div>
             <div><dt>Estoque baixo</dt><dd>≤ {inventoryConfig.lowStockThreshold} unidades</dd></div>
+            <div><dt>TikTok orgs / sync</dt><dd>{tikTokShopConfig.syncOrganizationLimit}</dd></div>
+            <div><dt>TikTok páginas / loja</dt><dd>{tikTokShopConfig.syncMaxPagesPerShop}</dd></div>
           </dl>
         </section>
       </div>
