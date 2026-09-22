@@ -1,25 +1,63 @@
 import { AppShell } from "@/components/app-shell";
 import { AutomationRunForm } from "@/components/automation-run-form";
 import { requireSession } from "@/lib/auth";
+import { getAutomationQueueStatus } from "@/lib/automation/queue";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage() {
   const session = await requireSession();
-  const automations = await db.automation.findMany({
-    where: { organizationId: session.organizationId },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [automations, queue] = await Promise.all([
+    db.automation.findMany({
+      where: { organizationId: session.organizationId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    getAutomationQueueStatus(session.organizationId),
+  ]);
+
+  const backlog = queue.pending + queue.retryableFailed;
 
   return (
     <AppShell active="Automações" email={session.email}>
       <div className="eyebrow">Orquestração</div>
       <h1>Automações</h1>
-      <p className="lead">Configure regras pequenas e teste cada uma manualmente antes de ligar eventos automáticos. Decisões usam Jev primeiro e respeitam o orçamento do GPT.</p>
+      <p className="lead">Eventos reais entram em uma fila persistente. O processamento é limitado em pequenos lotes para evitar rajadas de chamadas ao Jev/GPT.</p>
 
-      <div className="two-col">
+      <section className="card queue-card">
+        <div className="integration-head">
+          <div>
+            <h2>Fila de automações</h2>
+            <p className="muted-copy">Pedidos são salvos primeiro. IA roda depois e nunca bloqueia a operação principal.</p>
+          </div>
+          <span className={queue.deadLetter > 0 ? "status" : "status ok"}>
+            {queue.deadLetter > 0 ? "Requer atenção" : "Saudável"}
+          </span>
+        </div>
+
+        <div className="grid compact-grid">
+          <QueueMetric label="Pendentes" value={queue.pending} />
+          <QueueMetric label="Retry" value={queue.retryableFailed} />
+          <QueueMetric label="Processando" value={queue.processing} />
+          <QueueMetric label="Concluídas" value={queue.succeeded} />
+          <QueueMetric label="Falha definitiva" value={queue.deadLetter} />
+        </div>
+
+        <div className="queue-actions">
+          <form action="/api/automations/process" method="post">
+            <input type="hidden" name="limit" value={queue.batchSize} />
+            <button className="primary" type="submit" disabled={backlog === 0}>
+              Processar até {queue.batchSize}
+            </button>
+          </form>
+          <small>
+            Máximo de {queue.maxAttempts} tentativas por execução. Falhas definitivas ficam visíveis e não são repetidas silenciosamente.
+          </small>
+        </div>
+      </section>
+
+      <div className="two-col section">
         <section className="card">
           <h2>Nova automação</h2>
           <form className="form" action="/api/automations" method="post">
@@ -49,7 +87,7 @@ export default async function AutomationsPage() {
               <input name="jevOptions" defaultValue="processar,revisar" placeholder="processar,revisar" />
               <small>Separadas por vírgula. Usadas somente quando a ação é Jev.</small>
             </label>
-            <label className="check-row"><input name="enabled" type="checkbox" /> Ativar para testes</label>
+            <label className="check-row"><input name="enabled" type="checkbox" /> Ativar para testes e eventos novos</label>
             <button className="primary">Criar automação</button>
           </form>
         </section>
@@ -95,6 +133,15 @@ export default async function AutomationsPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function QueueMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="queue-metric">
+      <small>{label}</small>
+      <strong>{value.toLocaleString("pt-BR")}</strong>
+    </div>
   );
 }
 
