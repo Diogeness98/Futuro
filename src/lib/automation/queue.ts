@@ -240,6 +240,51 @@ export async function processAutomationQueue(input: {
   return summary;
 }
 
+export async function processAllAutomationQueues(input: {
+  organizationLimit?: number;
+  perOrganizationLimit?: number;
+} = {}) {
+  const organizationLimit = Math.min(20, Math.max(1, input.organizationLimit ?? 5));
+  const perOrganizationLimit = Math.min(10, Math.max(1, input.perOrganizationLimit ?? 3));
+
+  const organizations = await db.automationEvent.findMany({
+    where: {
+      executions: {
+        some: {
+          attempts: { lt: MAX_ATTEMPTS },
+          status: { in: ["pending", "failed"] },
+        },
+      },
+    },
+    select: { organizationId: true },
+    distinct: ["organizationId"],
+    take: organizationLimit,
+  });
+
+  const summary = {
+    organizations: 0,
+    claimed: 0,
+    succeeded: 0,
+    failed: 0,
+    skipped: 0,
+  };
+
+  for (const item of organizations) {
+    const result = await processAutomationQueue({
+      organizationId: item.organizationId,
+      limit: perOrganizationLimit,
+    });
+
+    summary.organizations += 1;
+    summary.claimed += result.claimed;
+    summary.succeeded += result.succeeded;
+    summary.failed += result.failed;
+    summary.skipped += result.skipped;
+  }
+
+  return summary;
+}
+
 export async function getAutomationQueueStatus(organizationId: string) {
   const [pending, processing, failed, succeeded] = await Promise.all([
     db.automationEventExecution.count({
