@@ -11,6 +11,7 @@ const STATE_COOKIE = "futuro_tiktok_oauth_state";
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (session.role !== "owner") return NextResponse.json({ error: "Apenas o proprietário pode gerenciar credenciais TikTok." }, { status: 403 });
 
   try {
     requireTikTokAppCredentials();
