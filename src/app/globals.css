@@ -139,3 +139,10 @@ th { color: var(--muted); font-weight: 600; }
 .automation-result { display: grid; gap: 8px; margin-top: 4px; }
 .automation-result-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
 .automation-result pre { margin: 0; max-width: 420px; max-height: 280px; overflow: auto; background: #0a0d10; border: 1px solid var(--border); border-radius: 8px; padding: 9px; font-size: 11px; white-space: pre-wrap; word-break: break-word; }
+
+.queue-card { margin-top: 22px; }
+.queue-metric { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); }
+.queue-metric small { color: var(--muted); }
+.queue-metric strong { font-size: 22px; }
+.queue-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.queue-actions small { color: var(--muted); line-height: 1.4; max-width: 680px; }
