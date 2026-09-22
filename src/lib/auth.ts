@@ -21,6 +21,8 @@ function secret() {
 export async function createSessionToken(payload: SessionPayload) {
   return new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
+    .setIssuer("futuro")
+    .setAudience("futuro-web")
     .setIssuedAt()
     .setExpirationTime(`${SESSION_SECONDS}s`)
     .sign(secret());
@@ -49,7 +51,11 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, secret(), {
+      algorithms: ["HS256"],
+      issuer: "futuro",
+      audience: "futuro-web",
+    });
     if (!payload.userId || !payload.organizationId || !payload.email) return null;
     return {
       userId: String(payload.userId),
