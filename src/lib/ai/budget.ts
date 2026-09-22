@@ -95,20 +95,20 @@ export async function getOpenAiBudgetStatus(organizationId: string): Promise<Ope
   const aggregate = await db.aiDecision.aggregate({
     where: {
       organizationId,
-      provider: "openai",
+      openAiAttempted: true,
       createdAt: { gte: since },
     },
     _count: { _all: true },
     _sum: {
-      inputTokens: true,
-      outputTokens: true,
+      openAiInputTokens: true,
+      openAiOutputTokens: true,
     },
   });
 
   const evaluated = evaluateOpenAiBudget({
     calls: aggregate._count._all,
-    inputTokens: aggregate._sum.inputTokens ?? 0,
-    outputTokens: aggregate._sum.outputTokens ?? 0,
+    inputTokens: aggregate._sum.openAiInputTokens ?? 0,
+    outputTokens: aggregate._sum.openAiOutputTokens ?? 0,
   });
 
   return { ...evaluated, windowHours };
