@@ -10,6 +10,7 @@ export type AutomationActionConfig =
       type: "jev.decide";
       instruction: string;
       options: string[];
+      criteria: Record<string, string>;
     }
   | {
       type: "gpt.generate";
@@ -24,6 +25,7 @@ export function buildAutomationAction(input: {
   type: AutomationActionType;
   instruction?: string;
   optionsText?: string;
+  criteriaText?: string;
 }): AutomationActionConfig {
   const instruction = input.instruction?.trim();
 
@@ -35,6 +37,7 @@ export function buildAutomationAction(input: {
       type: "jev.decide",
       instruction: instruction || "Classifique este evento e escolha a próxima ação.",
       options,
+      criteria: buildCriteria(options, input.criteriaText),
     };
   }
 
@@ -79,6 +82,7 @@ export function parseAutomationAction(value: unknown): AutomationActionConfig {
         ? record.instruction.trim()
         : "Classifique este evento e escolha a próxima ação.",
       options,
+      criteria: normalizeStoredCriteria(options, record.criteria),
     };
   }
 
@@ -101,6 +105,38 @@ export function parseAutomationAction(value: unknown): AutomationActionConfig {
   }
 
   throw new Error("Ação de automação inválida.");
+}
+
+function buildCriteria(options: string[], text?: string) {
+  const supplied = new Map<string, string>();
+
+  for (const line of (text ?? "").split("\n")) {
+    const separator = line.indexOf(":");
+    if (separator <= 0) continue;
+
+    const option = line.slice(0, separator).trim();
+    const description = line.slice(separator + 1).trim();
+    if (option && description) supplied.set(option, description);
+  }
+
+  return Object.fromEntries(options.map((option) => [
+    option,
+    supplied.get(option) ?? option,
+  ]));
+}
+
+function normalizeStoredCriteria(options: string[], value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return Object.fromEntries(options.map((option) => [option, option]));
+  }
+
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(options.map((option) => [
+    option,
+    typeof record[option] === "string" && record[option].trim()
+      ? record[option].trim()
+      : option,
+  ]));
 }
 
 function uniqueOptions(value: string) {
