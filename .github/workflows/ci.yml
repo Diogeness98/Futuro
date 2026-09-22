@@ -33,6 +33,7 @@ jobs:
       DATABASE_URL: "postgresql://user:password@localhost:5432/futuro"
       AUTH_SECRET: "ci-only-secret-value-with-at-least-32-characters"
       JEV_MODE: mock
+      RUN_DB_TESTS: "1"
 
     steps:
       - uses: actions/checkout@v4
