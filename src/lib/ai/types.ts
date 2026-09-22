@@ -41,6 +41,8 @@ export interface AiExecutionResult {
   result: string | JevDecision | Record<string, unknown>;
   confidence?: number;
   usage?: ProviderUsage;
+  openAiAttempted?: boolean;
+  openAiUsage?: ProviderUsage;
   escalated?: boolean;
   manualReview?: boolean;
   workRecommended?: boolean;
