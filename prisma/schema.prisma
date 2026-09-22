@@ -120,6 +120,11 @@ model Order {
   totalCents     Int          @default(0)
   sourceShopCipher String?
   sourceShopName   String?
+  needUploadInvoice String?
+  orderType         String?
+  fulfillmentType  String?
+  shippingType     String?
+  detailsSyncedAt  DateTime?
   orderCreatedEventAt DateTime?
   items          OrderItem[]
   createdAt      DateTime     @default(now())
@@ -130,14 +135,20 @@ model Order {
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  productId String?
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  name      String
-  quantity  Int      @default(1)
-  unitCents Int      @default(0)
+  id            String   @id @default(cuid())
+  orderId       String
+  productId     String?
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  externalId    String?
+  externalSkuId String?
+  sellerSku     String?
+  name          String
+  quantity      Int      @default(1)
+  unitCents     Int      @default(0)
+  currency      String?
+
+  @@index([orderId])
 }
 
 model Integration {
