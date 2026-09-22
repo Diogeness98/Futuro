@@ -156,3 +156,8 @@ th { color: var(--muted); font-weight: 600; }
 
 .review-control summary { cursor: pointer; color: var(--accent); font-size: 12px; }
 .review-control .mini-form { margin-top: 7px; min-width: 220px; }
+
+.readiness-card { margin-top: 22px; }
+.readiness-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 14px; }
+.readiness-item { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.readiness-item small { color: var(--muted); line-height: 1.4; }
