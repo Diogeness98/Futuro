@@ -8,13 +8,22 @@ export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage() {
   const session = await requireSession();
-  const [automations, queue] = await Promise.all([
+  const [automations, queue, recentExecutions] = await Promise.all([
     db.automation.findMany({
       where: { organizationId: session.organizationId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
     getAutomationQueueStatus(session.organizationId),
+    db.automationEventExecution.findMany({
+      where: { event: { organizationId: session.organizationId } },
+      include: {
+        automation: { select: { name: true, deletedAt: true } },
+        event: { select: { triggerType: true, entityType: true, entityId: true, createdAt: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
   ]);
 
   const backlog = queue.pending + queue.retryableFailed;
@@ -137,6 +146,31 @@ export default async function AutomationsPage() {
           {automations.length === 0 && <p className="empty">Nenhuma automação ainda.</p>}
         </section>
       </div>
+
+      <section className="section card table-card">
+        <h2>Execuções recentes da fila</h2>
+        <table>
+          <thead>
+            <tr><th>Quando</th><th>Automação</th><th>Gatilho</th><th>Status</th><th>Tentativas</th><th>Erro</th></tr>
+          </thead>
+          <tbody>
+            {recentExecutions.map((execution) => (
+              <tr key={execution.id}>
+                <td>{formatDate(execution.createdAt)}</td>
+                <td>
+                  {execution.automation.name}
+                  {execution.automation.deletedAt ? " (excluída)" : ""}
+                </td>
+                <td>{execution.event.triggerType}</td>
+                <td><span className={executionStatusClass(execution.status)}>{execution.status}</span></td>
+                <td>{execution.attempts}</td>
+                <td className="truncate-cell">{execution.lastError ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {recentExecutions.length === 0 && <p className="empty">Nenhuma execução automática ainda.</p>}
+      </section>
     </AppShell>
   );
 }
@@ -166,4 +200,14 @@ function actionSummary(value: unknown) {
   }
 
   return type;
+}
+
+
+function formatDate(value: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(value);
+}
+
+function executionStatusClass(status: string) {
+  if (status === "succeeded" || status === "skipped") return "status ok";
+  return "status";
 }
