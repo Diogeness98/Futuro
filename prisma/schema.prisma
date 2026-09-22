@@ -63,6 +63,8 @@ model Product {
   active            Boolean          @default(true)
   externalStatus    String?
   externalUpdatedAt DateTime?
+  sourceShopCipher  String?
+  sourceShopName    String?
   lowStockEpisodeId String?
   lowStockEventAt   DateTime?
   variants          ProductVariant[]
@@ -116,6 +118,8 @@ model Order {
   channel        String       @default("manual")
   status         String       @default("pending")
   totalCents     Int          @default(0)
+  sourceShopCipher String?
+  sourceShopName   String?
   orderCreatedEventAt DateTime?
   items          OrderItem[]
   createdAt      DateTime     @default(now())
