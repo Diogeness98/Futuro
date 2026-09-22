@@ -12,6 +12,7 @@ export const tikTokShopConfig = {
   timeoutMs: numberFromEnv("TIKTOK_SHOP_TIMEOUT_MS", 20_000),
   syncOrganizationLimit: Math.min(20, Math.max(1, Math.floor(numberFromEnv("TIKTOK_SYNC_ORG_LIMIT", 5)))),
   syncMaxPagesPerShop: Math.min(50, Math.max(1, Math.floor(numberFromEnv("TIKTOK_SYNC_MAX_PAGES_PER_SHOP", 20)))),
+  productSyncIntervalMinutes: Math.min(1440, Math.max(5, Math.floor(numberFromEnv("TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES", 60)))),
 };
 
 export function requireTikTokAppCredentials() {
