@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { enqueueAutomationEvents } from "@/lib/automation/queue";
 import { searchTikTokOrders } from "./client";
 import { normalizeTikTokOrder } from "./order-normalize";
+import { acquireTikTokSyncLock, releaseTikTokSyncLock } from "./sync-lock";
 import { loadTikTokConnection, updateTikTokTokens } from "./storage";
 import { refreshTikTokAccessToken } from "./tokens";
 
@@ -26,159 +27,173 @@ export async function syncTikTokOrders(
   const connection = await loadTikTokConnection(organizationId);
   if (!connection) throw new Error("TikTok Shop não está conectado.");
 
-  assertOrderScope(connection.config.grantedScopes);
-
-  let accessToken = connection.tokens.accessToken;
-  if (shouldRefresh(connection.config.accessTokenExpiresAt)) {
-    const refreshed = await refreshTikTokAccessToken(connection.tokens.refreshToken);
-    await updateTikTokTokens(organizationId, refreshed);
-    accessToken = refreshed.accessToken;
+  const locked = await acquireTikTokSyncLock(organizationId);
+  if (!locked) {
+    throw new Error("Uma sincronização TikTok Shop já está em andamento para esta organização.");
   }
 
-  const shops = connection.config.shops.filter((shop) => Boolean(shop.cipher));
-  if (shops.length === 0) throw new Error("Nenhuma loja TikTok autorizada foi encontrada.");
+  try {
+    assertOrderScope(connection.config.grantedScopes);
 
-  const lastSync = await db.activityLog.findFirst({
-    where: {
-      organizationId,
-      action: "integration.tiktok.orders_synced",
-    },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
+    let accessToken = connection.tokens.accessToken;
+    if (shouldRefresh(connection.config.accessTokenExpiresAt)) {
+      const refreshed = await refreshTikTokAccessToken(connection.tokens.refreshToken);
+      await updateTikTokTokens(organizationId, refreshed);
+      accessToken = refreshed.accessToken;
+    }
 
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const since = lastSync
-    ? Math.max(0, Math.floor(lastSync.createdAt.getTime() / 1000) - OVERLAP_SECONDS)
-    : nowSeconds - FIRST_SYNC_SECONDS;
+    const shops = connection.config.shops.filter((shop) => Boolean(shop.cipher));
+    if (shops.length === 0) throw new Error("Nenhuma loja TikTok autorizada foi encontrada.");
 
-  const summary: TikTokOrderSyncSummary = {
-    synced: 0,
-    created: 0,
-    updated: 0,
-    pages: 0,
-    shops: shops.length,
-    since,
-    automationEventsQueued: 0,
-  };
+    const lastSync = await db.activityLog.findFirst({
+      where: {
+        organizationId,
+        action: "integration.tiktok.orders_synced",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
 
-  for (const shop of shops) {
-    let pageToken: string | undefined;
-    const maxPages = Math.min(50, Math.max(1, options.maxPagesPerShop ?? 20));
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const since = lastSync
+      ? Math.max(0, Math.floor(lastSync.createdAt.getTime() / 1000) - OVERLAP_SECONDS)
+      : nowSeconds - FIRST_SYNC_SECONDS;
 
-    for (let page = 0; page < maxPages; page += 1) {
-      const result = await searchTikTokOrders(accessToken, shop.cipher, {
-        updateTimeGe: since,
-        pageToken,
-        pageSize: 100,
-      });
+    const summary: TikTokOrderSyncSummary = {
+      synced: 0,
+      created: 0,
+      updated: 0,
+      pages: 0,
+      shops: shops.length,
+      since,
+      automationEventsQueued: 0,
+    };
 
-      const queueEvents: Array<{
-        entityType: string;
-        entityId: string;
-        payload: unknown;
-      }> = [];
+    for (const shop of shops) {
+      let pageToken: string | undefined;
+      const maxPages = Math.min(50, Math.max(1, options.maxPagesPerShop ?? 20));
 
-      if (result.orders.length > 0) {
-        const ids = result.orders.map((order) => String(order.id)).filter(Boolean);
-        const existing = await db.order.findMany({
-          where: {
-            organizationId,
-            channel: CHANNEL,
-            externalId: { in: ids },
-          },
-          select: { externalId: true },
+      for (let page = 0; page < maxPages; page += 1) {
+        const result = await searchTikTokOrders(accessToken, shop.cipher, {
+          updateTimeGe: since,
+          pageToken,
+          pageSize: 100,
         });
-        const existingIds = new Set(existing.map((order) => order.externalId).filter(Boolean));
 
-        for (const order of result.orders) {
-          const normalized = normalizeTikTokOrder(order);
-          if (!normalized.externalId) continue;
+        const queueEvents: Array<{
+          entityType: string;
+          entityId: string;
+          payload: unknown;
+        }> = [];
 
-          const persisted = await db.order.upsert({
+        if (result.orders.length > 0) {
+          const ids = result.orders.map((order) => String(order.id)).filter(Boolean);
+          const existing = await db.order.findMany({
             where: {
-              organizationId_channel_externalId: {
-                organizationId,
-                channel: CHANNEL,
-                externalId: normalized.externalId,
-              },
-            },
-            create: {
               organizationId,
-              externalId: normalized.externalId,
               channel: CHANNEL,
-              status: normalized.status,
-              totalCents: normalized.totalCents,
+              externalId: { in: ids },
             },
-            update: {
-              status: normalized.status,
-              totalCents: normalized.totalCents,
-            },
+            select: { externalId: true },
           });
+          const existingIds = new Set(existing.map((order) => order.externalId).filter(Boolean));
 
-          summary.synced += 1;
-          if (existingIds.has(normalized.externalId)) {
-            summary.updated += 1;
-          } else {
-            summary.created += 1;
-            queueEvents.push({
-              entityType: "Order",
-              entityId: persisted.id,
-              payload: {
-                event: "order.created",
-                source: "tiktok_shop",
-                shop: {
-                  cipher: shop.cipher,
-                  code: shop.code,
-                  id: shop.id,
-                  name: shop.name,
-                  region: shop.region,
+          for (const order of result.orders) {
+            const normalized = normalizeTikTokOrder(order);
+            if (!normalized.externalId) continue;
+
+            const persisted = await db.order.upsert({
+              where: {
+                organizationId_channel_externalId: {
+                  organizationId,
+                  channel: CHANNEL,
+                  externalId: normalized.externalId,
                 },
-                order: {
-                  id: persisted.id,
-                  externalId: persisted.externalId,
-                  channel: persisted.channel,
-                  status: persisted.status,
-                  totalCents: persisted.totalCents,
-                  currency: normalized.currency,
-                  createTime: normalized.createTime,
-                  updateTime: normalized.updateTime,
-                },
+              },
+              create: {
+                organizationId,
+                externalId: normalized.externalId,
+                channel: CHANNEL,
+                status: normalized.status,
+                totalCents: normalized.totalCents,
+              },
+              update: {
+                status: normalized.status,
+                totalCents: normalized.totalCents,
               },
             });
+
+            summary.synced += 1;
+            if (existingIds.has(normalized.externalId)) {
+              summary.updated += 1;
+            } else {
+              summary.created += 1;
+              queueEvents.push({
+                entityType: "Order",
+                entityId: persisted.id,
+                payload: {
+                  event: "order.created",
+                  source: "tiktok_shop",
+                  shop: {
+                    cipher: shop.cipher,
+                    code: shop.code,
+                    id: shop.id,
+                    name: shop.name,
+                    region: shop.region,
+                  },
+                  order: {
+                    id: persisted.id,
+                    externalId: persisted.externalId,
+                    channel: persisted.channel,
+                    status: persisted.status,
+                    totalCents: persisted.totalCents,
+                    currency: normalized.currency,
+                    createTime: normalized.createTime,
+                    updateTime: normalized.updateTime,
+                  },
+                },
+              });
+            }
           }
         }
-      }
 
-      if (queueEvents.length > 0) {
-        try {
-          const queued = await enqueueAutomationEvents({
-            organizationId,
-            triggerType: "order.created",
-            events: queueEvents,
-          });
-          summary.automationEventsQueued += queued.events;
-        } catch (queueError) {
-          console.error(
-            "Pedidos TikTok sincronizados, mas falhou ao enfileirar automações:",
-            queueError instanceof Error ? queueError.message : "erro desconhecido",
-          );
+        if (queueEvents.length > 0) {
+          try {
+            const queued = await enqueueAutomationEvents({
+              organizationId,
+              triggerType: "order.created",
+              events: queueEvents,
+            });
+            summary.automationEventsQueued += queued.events;
+          } catch (queueError) {
+            console.error(
+              "Pedidos TikTok sincronizados, mas falhou ao enfileirar automações:",
+              queueError instanceof Error ? queueError.message : "erro desconhecido",
+            );
+          }
         }
+
+        summary.pages += 1;
+        pageToken = result.nextPageToken;
+        if (!pageToken) break;
       }
 
-      summary.pages += 1;
-      pageToken = result.nextPageToken;
-      if (!pageToken) break;
+      if (pageToken) {
+        throw new Error(
+          `A sincronização da loja ${shop.name ?? shop.code ?? "TikTok"} atingiu o limite seguro de páginas. A execução não será marcada como concluída para evitar perda silenciosa de pedidos.`,
+        );
+      }
     }
 
-    if (pageToken) {
-      throw new Error(
-        `A sincronização da loja ${shop.name ?? shop.code ?? "TikTok"} atingiu o limite seguro de páginas. A execução não será marcada como concluída para evitar perda silenciosa de pedidos.`,
+    return summary;
+  } finally {
+    await releaseTikTokSyncLock(organizationId).catch((error) => {
+      console.error(
+        "Falha ao liberar lock de sincronização TikTok:",
+        error instanceof Error ? error.message : "erro desconhecido",
       );
-    }
+    });
   }
-
-  return summary;
 }
 
 function shouldRefresh(accessTokenExpiresAt?: number) {
