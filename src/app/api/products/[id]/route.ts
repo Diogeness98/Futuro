@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
 import { enqueueProductLowStockEvent } from "@/lib/automation/events";
-import { inventoryConfig } from "@/lib/inventory/config";
+import { inventoryConfig, shouldEmitLowStockEvent } from "@/lib/inventory/config";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -31,10 +31,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
   });
 
-  const enteredLowStock =
-    product.active &&
-    product.stock <= inventoryConfig.lowStockThreshold &&
-    (current.stock > inventoryConfig.lowStockThreshold || !current.active);
+  const enteredLowStock = shouldEmitLowStockEvent({
+    stock: product.stock,
+    active: product.active,
+    threshold: inventoryConfig.lowStockThreshold,
+    previousStock: current.stock,
+    previousActive: current.active,
+  });
 
   if (enteredLowStock) {
     try {
