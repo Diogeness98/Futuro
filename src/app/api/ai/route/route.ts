@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       escalated: result.escalated ?? false,
       manualReview: result.manualReview ?? false,
       workRecommended: result.workRecommended ?? false,
+      openAiAttempted: result.openAiAttempted ?? false,
       openAiBudget: {
         allowed: budget.allowed,
         calls: budget.calls,
@@ -75,6 +76,9 @@ export async function POST(request: Request) {
         confidence: result.confidence,
         inputTokens: result.usage?.inputTokens,
         outputTokens: result.usage?.outputTokens,
+        openAiAttempted: result.openAiAttempted ?? false,
+        openAiInputTokens: result.openAiUsage?.inputTokens,
+        openAiOutputTokens: result.openAiUsage?.outputTokens,
         decision: decisionPayload,
       },
     });
