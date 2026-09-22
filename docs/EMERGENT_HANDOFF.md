@@ -56,6 +56,9 @@ AUTH_SECRET=
 APP_URL=
 DATABASE_URL=
 INTEGRATION_ENCRYPTION_KEY=
+AUTOMATION_CRON_SECRET=
+AUTOMATION_WORKER_ORG_LIMIT=5
+AUTOMATION_WORKER_BATCH_SIZE=3
 ```
 
 `INTEGRATION_ENCRYPTION_KEY` deve ser uma chave aleatória de 32 bytes em Base64 e deve existir apenas no ambiente do servidor.
@@ -146,6 +149,29 @@ O código já implementa:
 - proteção contra edição manual de pedidos sincronizados.
 
 Na primeira configuração real do TikTok, apenas inserir secrets e validar o fluxo. Não reescrever o adapter.
+
+### Worker de automações
+
+A fila persistente e o worker já existem no código. Não reconstruir.
+
+Endpoint interno:
+
+```text
+GET ou POST /api/internal/automation-worker
+Authorization: Bearer <AUTOMATION_CRON_SECRET>
+```
+
+Configurar o scheduler do host para chamar esse endpoint periodicamente. O worker processa poucos itens por organização e respeita os mesmos limites Jev/GPT do restante do sistema.
+
+Recomendação inicial de produção: executar a cada minuto com `AUTOMATION_WORKER_ORG_LIMIT=5` e `AUTOMATION_WORKER_BATCH_SIZE=3`. Não aumentar esses valores durante a primeira validação real.
+
+A fila possui:
+- execução idempotente por evento × automação;
+- máximo de 3 tentativas;
+- recuperação de claims travados;
+- dead-letter após falha definitiva;
+- soft-delete de automações para preservar auditoria;
+- processamento manual pelo painel como fallback.
 
 ## Segurança
 
