@@ -21,7 +21,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 
   const automations = await db.automation.findMany({
-    where: { organizationId: session.organizationId },
+    where: { organizationId: session.organizationId, deletedAt: null },
     orderBy: { createdAt: "desc" },
   });
 
