@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAutomationAction, parseAutomationAction } from "./config";
+import { buildAutomationAction, buildAutomationConditions, evaluateAutomationConditions, parseAutomationAction } from "./config";
 
 describe("automation config", () => {
   it("normaliza opções Jev e remove duplicadas", () => {
@@ -49,5 +49,69 @@ describe("automation config", () => {
 
   it("rejeita ação persistida inválida", () => {
     expect(() => parseAutomationAction({ type: "desconhecida" })).toThrow(/Ação de automação inválida/);
+  });
+});
+
+
+describe("automation conditions", () => {
+  it("cria condição numérica a partir do formulário", () => {
+    const conditions = buildAutomationConditions({
+      path: "order.totalCents",
+      operator: "gte",
+      value: "50000",
+    });
+
+    expect(conditions).toEqual([{
+      path: "order.totalCents",
+      operator: "gte",
+      value: 50000,
+    }]);
+  });
+
+  it("permite quando a condição numérica é atendida", () => {
+    const result = evaluateAutomationConditions(
+      { order: { totalCents: 75000 } },
+      [{ path: "order.totalCents", operator: "gte", value: 50000 }],
+    );
+
+    expect(result.matched).toBe(true);
+  });
+
+  it("pula quando a condição não é atendida", () => {
+    const result = evaluateAutomationConditions(
+      { product: { stock: 4 } },
+      [{ path: "product.stock", operator: "lte", value: 2 }],
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.reason).toContain("product.stock");
+  });
+
+  it("avalia contexto recebido como JSON string", () => {
+    const result = evaluateAutomationConditions(
+      JSON.stringify({ order: { channel: "tiktok_shop" } }),
+      [{ path: "order.channel", operator: "eq", value: "tiktok_shop" }],
+    );
+
+    expect(result.matched).toBe(true);
+  });
+
+  it("sem condição sempre permite seguir sem IA adicional", () => {
+    expect(evaluateAutomationConditions({ anything: true }, []).matched).toBe(true);
+  });
+
+  it("rejeita paths inseguros", () => {
+    expect(() => buildAutomationConditions({
+      path: "__proto__.polluted",
+      operator: "eq",
+      value: "true",
+    })).toThrow(/Campo de condição inválido/);
+  });
+
+  it("exige condição completa quando algum campo é preenchido", () => {
+    expect(() => buildAutomationConditions({
+      path: "order.totalCents",
+      value: "50000",
+    })).toThrow(/Condição determinística incompleta/);
   });
 });
