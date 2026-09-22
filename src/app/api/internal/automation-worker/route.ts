@@ -1,7 +1,7 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { processAllAutomationQueues } from "@/lib/automation/queue";
 import { automationRuntimeConfig } from "@/lib/automation/runtime-config";
+import { cronAuthorized } from "@/lib/internal/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +14,14 @@ export async function POST(request: Request) {
 }
 
 async function handle(request: Request) {
-  const secret = process.env.AUTOMATION_CRON_SECRET;
-  if (!secret) {
+  const auth = cronAuthorized(request);
+  if (!auth.configured) {
     return NextResponse.json(
       { error: "AUTOMATION_CRON_SECRET não configurado." },
       { status: 503 },
     );
   }
-
-  if (!authorized(request, secret)) {
+  if (!auth.authorized) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
 
@@ -36,17 +35,5 @@ async function handle(request: Request) {
     summary,
     processedAt: new Date().toISOString(),
   });
-}
-
-function authorized(request: Request, secret: string) {
-  const authorization = request.headers.get("authorization") ?? "";
-  if (!authorization.startsWith("Bearer ")) return false;
-
-  const provided = authorization.slice("Bearer ".length);
-  const expectedBuffer = Buffer.from(secret);
-  const providedBuffer = Buffer.from(provided);
-
-  return expectedBuffer.length === providedBuffer.length &&
-    timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
