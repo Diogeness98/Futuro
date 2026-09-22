@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { integrationEncryptionKey } from "@/lib/crypto/secrets";
 import { tikTokShopConfig, requireTikTokAppCredentials } from "@/lib/integrations/tiktok/config";
+import { createTikTokOAuthStateCookie } from "@/lib/integrations/tiktok/oauth-state";
 
 const STATE_COOKIE = "futuro_tiktok_oauth_state";
 
@@ -22,12 +23,18 @@ export async function GET() {
     }
 
     const state = randomBytes(32).toString("hex");
+    const cookieValue = createTikTokOAuthStateCookie({
+      nonce: state,
+      userId: session.userId,
+      organizationId: session.organizationId,
+    });
+
     const cookieStore = await cookies();
-    cookieStore.set(STATE_COOKIE, state, {
+    cookieStore.set(STATE_COOKIE, cookieValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: "/",
+      path: "/api/integrations/tiktok",
       maxAge: 10 * 60,
     });
 
