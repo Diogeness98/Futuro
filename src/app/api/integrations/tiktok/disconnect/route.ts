@@ -6,6 +6,7 @@ import { disconnectTikTok } from "@/lib/integrations/tiktok/storage";
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  if (session.role !== "owner") return NextResponse.json({ error: "Apenas o proprietário pode gerenciar credenciais TikTok." }, { status: 403 });
 
   await disconnectTikTok(session.organizationId);
   await recordActivity({
