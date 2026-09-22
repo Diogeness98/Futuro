@@ -51,6 +51,11 @@ export default async function AutomationsPage() {
               Processar até {queue.batchSize}
             </button>
           </form>
+          {queue.deadLetter > 0 && (
+            <form action="/api/automations/retry-dead-letter" method="post">
+              <button className="secondary" type="submit">Reenfileirar até 20 falhas</button>
+            </form>
+          )}
           <small>
             Máximo de {queue.maxAttempts} tentativas por execução. Falhas definitivas ficam visíveis e não são repetidas silenciosamente.
           </small>
