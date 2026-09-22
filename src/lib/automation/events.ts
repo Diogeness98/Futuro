@@ -6,13 +6,13 @@ interface LowStockProduct {
   sku: string | null;
   stock: number;
   active: boolean;
-  updatedAt: Date;
 }
 
 export async function enqueueProductLowStockEvent(input: {
   organizationId: string;
   product: LowStockProduct;
   threshold: number;
+  episodeId: string;
 }) {
   return enqueueAutomationEvents({
     organizationId: input.organizationId,
@@ -20,7 +20,7 @@ export async function enqueueProductLowStockEvent(input: {
     events: [{
       entityType: "Product",
       entityId: input.product.id,
-      dedupeKey: `Product:${input.product.id}:${input.product.updatedAt.getTime()}`,
+      dedupeKey: `Product:${input.product.id}:low-stock:${input.episodeId}`,
       payload: {
         event: "product.low_stock",
         product: {
@@ -31,6 +31,7 @@ export async function enqueueProductLowStockEvent(input: {
           active: input.product.active,
         },
         threshold: input.threshold,
+        episodeId: input.episodeId,
       },
     }],
   });
