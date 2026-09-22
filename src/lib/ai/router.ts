@@ -1,3 +1,4 @@
+import { evaluateOpenAiReservation, type OpenAiBudgetStatus } from "./budget";
 import { aiConfig } from "./config";
 import { routeTask } from "./policy";
 import { decideWithJev } from "./providers/jev";
@@ -7,11 +8,11 @@ import type { AiExecutionResult, AiTask, JevDecision, ProviderUsage } from "./ty
 interface AiExecutionOptions {
   allowOpenAI?: boolean;
   budgetReason?: string;
+  openAiBudget?: OpenAiBudgetStatus;
 }
 
 export async function executeAiTask(task: AiTask, options: AiExecutionOptions = {}): Promise<AiExecutionResult> {
   const route = routeTask(task);
-  const allowOpenAI = options.allowOpenAI ?? true;
 
   if (route.provider === "code") {
     return { provider: "code", result: { handled: true, reason: route.reason } };
@@ -31,10 +32,31 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
     } catch (error) {
       const message = errorMessage(error);
 
-      if (aiConfig.jev.fallbackToGptOnError && allowOpenAI) {
+      if (aiConfig.jev.fallbackToGptOnError) {
+        const fallbackPrompt = buildDecisionFallbackPrompt(task, taskOptions, message);
+        const permit = openAiPermit(
+          options,
+          fallbackPrompt,
+          aiConfig.openai.reviewMaxOutputTokens,
+        );
+
+        if (!permit.allowed) {
+          return {
+            provider: "jev",
+            result: {
+              failed: true,
+              error: message,
+              budgetBlocked: true,
+              fallbackSuppressed: true,
+              reason: permit.reason,
+            },
+            manualReview: true,
+          };
+        }
+
         try {
           const fallback = await reviewDecisionWithOpenAI(
-            buildDecisionFallbackPrompt(task, taskOptions, message),
+            fallbackPrompt,
             taskOptions,
             aiConfig.openai.defaultModel,
           );
@@ -105,20 +127,6 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
       };
     }
 
-    if (!allowOpenAI) {
-      return {
-        provider: "jev",
-        result: {
-          ...decision,
-          budgetBlocked: true,
-          reason: options.budgetReason ?? "Orçamento OpenAI indisponível.",
-        },
-        confidence: decision.confidence,
-        usage: jevUsage,
-        manualReview: true,
-      };
-    }
-
     const reviewPrompt = [
       "Você é o revisor econômico do roteador Futuro.",
       "Revise a decisão abaixo e selecione exatamente uma opção permitida.",
@@ -129,6 +137,26 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
       `Jev escolheu: ${decision.decision} com confiança ${decision.confidence}.`,
       "Use a justificativa somente para auditoria e mantenha-a curta.",
     ].filter(Boolean).join("\n");
+
+    const reviewPermit = openAiPermit(
+      options,
+      reviewPrompt,
+      aiConfig.openai.reviewMaxOutputTokens,
+    );
+
+    if (!reviewPermit.allowed) {
+      return {
+        provider: "jev",
+        result: {
+          ...decision,
+          budgetBlocked: true,
+          reason: reviewPermit.reason,
+        },
+        confidence: decision.confidence,
+        usage: jevUsage,
+        manualReview: true,
+      };
+    }
 
     try {
       const reviewed = await reviewDecisionWithOpenAI(
@@ -163,13 +191,19 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
     }
   }
 
-  if (!allowOpenAI) {
+  const model = route.model ?? aiConfig.openai.defaultModel;
+  const maxOutputTokens = model === aiConfig.openai.escalationModel
+    ? aiConfig.openai.escalationMaxOutputTokens
+    : aiConfig.openai.defaultMaxOutputTokens;
+  const permit = openAiPermit(options, task.input, maxOutputTokens);
+
+  if (!permit.allowed) {
     return {
       provider: "code",
       result: {
         handled: false,
         budgetBlocked: true,
-        reason: options.budgetReason ?? "Orçamento OpenAI indisponível.",
+        reason: permit.reason,
       },
       manualReview: true,
       workRecommended: false,
@@ -177,7 +211,7 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
   }
 
   try {
-    const generated = await generateWithOpenAI(task.input, route.model);
+    const generated = await generateWithOpenAI(task.input, model);
     return {
       provider: "openai",
       result: generated.text,
@@ -195,6 +229,34 @@ export async function executeAiTask(task: AiTask, options: AiExecutionOptions = 
       workRecommended: false,
     };
   }
+}
+
+function openAiPermit(
+  options: AiExecutionOptions,
+  input: string,
+  maxOutputTokens: number,
+) {
+  if (options.allowOpenAI === false) {
+    return {
+      allowed: false,
+      reason: options.budgetReason || "Orçamento OpenAI indisponível.",
+    };
+  }
+
+  if (options.openAiBudget) {
+    const reservation = evaluateOpenAiReservation(
+      options.openAiBudget,
+      input.length,
+      maxOutputTokens,
+    );
+
+    return {
+      allowed: reservation.allowed,
+      reason: reservation.reasons.join(" ") || "Orçamento OpenAI disponível.",
+    };
+  }
+
+  return { allowed: true, reason: "Orçamento OpenAI não informado." };
 }
 
 function usageFromJev(decision: JevDecision): ProviderUsage | undefined {
