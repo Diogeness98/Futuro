@@ -200,7 +200,7 @@ model AutomationEventExecution {
   eventId      String
   automationId String
   event        AutomationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  automation   Automation      @relation(fields: [automationId], references: [id], onDelete: Restrict)
+  automation   Automation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
   status       String          @default("pending")
   attempts     Int             @default(0)
   lastError    String?
