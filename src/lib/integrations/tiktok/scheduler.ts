@@ -19,6 +19,7 @@ export interface TikTokScheduledSyncSummary {
   productsCreated: number;
   productsUpdated: number;
   productVariants: number;
+  productLowStockEventsQueued: number;
 }
 
 export async function syncConnectedTikTokOrganizations(input: {
@@ -61,6 +62,7 @@ export async function syncConnectedTikTokOrganizations(input: {
     productsCreated: 0,
     productsUpdated: 0,
     productVariants: 0,
+    productLowStockEventsQueued: 0,
   };
 
   for (const connection of connections) {
@@ -132,6 +134,7 @@ export async function syncConnectedTikTokOrganizations(input: {
         summary.productsCreated += result.created;
         summary.productsUpdated += result.updated;
         summary.productVariants += result.variants;
+        summary.productLowStockEventsQueued += result.lowStockEventsQueued;
 
         await recordActivity({
           organizationId: connection.organizationId,
@@ -147,6 +150,8 @@ export async function syncConnectedTikTokOrganizations(input: {
             variants: result.variants,
             pages: result.pages,
             shops: result.shops,
+            initialImport: result.initialImport,
+            lowStockEventsQueued: result.lowStockEventsQueued,
           }),
         });
       } catch (error) {
