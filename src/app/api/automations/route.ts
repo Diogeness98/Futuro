@@ -13,6 +13,7 @@ const automationSchema = z.object({
   actionType: z.enum(["jev.decide", "gpt.generate", "manual.review"]),
   actionInstruction: z.string().trim().max(2_000).optional().or(z.literal("")),
   jevOptions: z.string().trim().max(2_000).optional().or(z.literal("")),
+  jevCriteria: z.string().trim().max(4_000).optional().or(z.literal("")),
   enabled: z.union([z.string(), z.boolean()]).optional(),
 });
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       type: input.actionType,
       instruction: input.actionInstruction,
       optionsText: input.jevOptions,
+      criteriaText: input.jevCriteria,
     });
 
     const automation = await db.automation.create({
