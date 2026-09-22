@@ -136,6 +136,7 @@ TIKTOK_SHOP_API_BASE_URL=https://open-api.tiktokglobalshop.com
 TIKTOK_SHOP_TIMEOUT_MS=20000
 TIKTOK_SYNC_ORG_LIMIT=5
 TIKTOK_SYNC_MAX_PAGES_PER_SHOP=20
+TIKTOK_ORDER_DETAIL_MAX_BATCHES_PER_SYNC=2
 TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES=60
 ```
 
@@ -147,7 +148,7 @@ Configurar no Partner Center o callback/redirect da aplicação para:
 <APP_URL>/api/integrations/tiktok/callback
 ```
 
-Na primeira validação, manter TikTok Shop em modo de leitura para pedidos e catálogo. Não implementar publicação/edição de produtos nem fulfillment automático nesta passagem. Para o mercado brasileiro, o fluxo de invoice/nota fiscal deve ser validado antes de qualquer ação de envio.
+Na primeira validação, manter TikTok Shop em modo de leitura para pedidos e catálogo. O enriquecimento de pedidos não persiste CPF/endereço do comprador nesta fase. Não implementar publicação/edição de produtos nem fulfillment automático nesta passagem. Para o mercado brasileiro, o fluxo de invoice/nota fiscal deve ser validado antes de qualquer ação de envio.
 
 O código já implementa:
 
@@ -159,6 +160,9 @@ O código já implementa:
 - armazenamento dos tokens com AES-256-GCM;
 - conexão, refresh e desconexão local;
 - sincronização incremental de pedidos;
+- enriquecimento de pedidos com Get Order Detail em modo somente leitura;
+- persistência de itens, vínculo com produtos TikTok, estado fiscal e fulfillment;
+- limite rígido de enriquecimento por ciclo: até 2 lotes de 50 pedidos por padrão;
 - primeira importação de pedidos como baseline sem disparar IA sobre histórico;
 - Search Products / catálogo em modo somente leitura;
 - persistência de produtos e variantes TikTok;
