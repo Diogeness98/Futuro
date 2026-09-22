@@ -1,9 +1,17 @@
 import { createHmac } from "node:crypto";
 
+export type TikTokQueryValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Array<string | number | boolean>;
+
 interface SignTikTokRequestInput {
   appSecret: string;
   path: string;
-  query: Record<string, string | number | boolean | null | undefined>;
+  query: Record<string, TikTokQueryValue>;
   body?: string;
   contentType?: string;
 }
@@ -11,7 +19,7 @@ interface SignTikTokRequestInput {
 export function signTikTokRequest(input: SignTikTokRequestInput) {
   const cleaned = Object.entries(input.query)
     .filter(([key, value]) => key !== "sign" && key !== "access_token" && value !== undefined && value !== null)
-    .map(([key, value]) => [key, String(value)] as const)
+    .map(([key, value]) => [key, queryValueForSignature(value)] as const)
     .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
 
   let canonical = input.path;
@@ -25,4 +33,9 @@ export function signTikTokRequest(input: SignTikTokRequestInput) {
   return createHmac("sha256", input.appSecret)
     .update(canonical, "utf8")
     .digest("hex");
+}
+
+function queryValueForSignature(value: TikTokQueryValue) {
+  if (Array.isArray(value)) return value.map(String).join(",");
+  return String(value);
 }
