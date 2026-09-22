@@ -84,6 +84,8 @@ As variáveis mais importantes são:
 AUTH_SECRET=
 DATABASE_URL=
 INTEGRATION_ENCRYPTION_KEY=
+AUTOMATION_CRON_SECRET=
+LOW_STOCK_THRESHOLD=5
 
 OPENAI_API_KEY=
 
@@ -150,6 +152,23 @@ A página **Automações** permite:
 - excluir regras.
 
 Os testes manuais já usam o mesmo roteador, orçamento e auditoria que serão usados pelos eventos automáticos.
+
+### Fila e worker
+
+Eventos automáticos não chamam IA dentro do CRUD. Eles entram em uma fila PostgreSQL idempotente.
+
+Gatilhos conectados:
+- `order.created` para pedidos manuais e novos pedidos TikTok;
+- `product.low_stock` quando o estoque cruza o limiar configurado.
+
+O worker interno é:
+
+```text
+GET/POST /api/internal/automation-worker
+Authorization: Bearer <AUTOMATION_CRON_SECRET>
+```
+
+O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados e dead-letter com retry manual pelo painel.
 
 ## Emergent
 
