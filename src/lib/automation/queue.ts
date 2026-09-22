@@ -4,6 +4,7 @@ import { db } from "../db";
 import type { AutomationTriggerType } from "./config";
 import { parseAutomationTrigger } from "./config";
 import { runAutomation } from "./runner";
+import { acquireAutomationWorkerLock, releaseAutomationWorkerLock } from "./worker-lock";
 
 const MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_SIZE = 5;
@@ -135,6 +136,34 @@ export async function enqueueAutomationEvents(input: {
 }
 
 export async function processAutomationQueue(input: {
+  organizationId: string;
+  actorId?: string;
+  limit?: number;
+}): Promise<QueueProcessSummary> {
+  const lockToken = await acquireAutomationWorkerLock(input.organizationId);
+  if (!lockToken) {
+    return {
+      claimed: 0,
+      succeeded: 0,
+      review: 0,
+      failed: 0,
+      skipped: 0,
+    };
+  }
+
+  try {
+    return await processAutomationQueueLocked(input);
+  } finally {
+    await releaseAutomationWorkerLock(input.organizationId, lockToken).catch((error) => {
+      console.error(
+        "Falha ao liberar lock do worker de automações:",
+        error instanceof Error ? error.message : "erro desconhecido",
+      );
+    });
+  }
+}
+
+async function processAutomationQueueLocked(input: {
   organizationId: string;
   actorId?: string;
   limit?: number;
