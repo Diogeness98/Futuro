@@ -28,6 +28,7 @@ export async function runAutomation(input: {
     where: {
       id: input.automationId,
       organizationId: input.organizationId,
+      deletedAt: null,
     },
   });
 
