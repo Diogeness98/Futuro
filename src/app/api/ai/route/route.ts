@@ -48,6 +48,7 @@ export async function POST(request: Request) {
     const result = await executeAiTask(task, {
       allowOpenAI: budget.allowed,
       budgetReason: budget.reasons.join(" "),
+      openAiBudget: budget,
     });
 
     const decisionPayload = JSON.parse(JSON.stringify({
