@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 interface ActivityInput {
   organizationId: string;
   actorId?: string | null;
+  actorType?: "user" | "system";
   action: string;
   entityType?: string | null;
   entityId?: string | null;
@@ -15,7 +16,7 @@ export async function recordActivity(input: ActivityInput) {
     await db.activityLog.create({
       data: {
         organizationId: input.organizationId,
-        actorType: "user",
+        actorType: input.actorType ?? (input.actorId ? "user" : "system"),
         actorId: input.actorId ?? null,
         action: input.action,
         entityType: input.entityType ?? null,
