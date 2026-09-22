@@ -1,5 +1,5 @@
-import { Prisma } from "@/generated/prisma/client";
-import { db } from "@/lib/db";
+import { Prisma } from "../generated/prisma/client";
+import { db } from "./db";
 
 interface ActivityInput {
   organizationId: string;
