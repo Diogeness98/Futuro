@@ -113,6 +113,7 @@ model Integration {
   status         String       @default("not_configured")
   config         Json?
   syncLockedAt   DateTime?
+  syncLockToken  String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
