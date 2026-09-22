@@ -14,8 +14,8 @@ export function routeTask(task: AiTask): RoutingDecision {
   if (task.requiresExternalInteraction || externalHints.some((hint) => input.includes(hint))) {
     return {
       provider: "openai",
-      model: aiConfig.openai.escalationModel,
-      reason: "GPT analisa primeiro; Work só é recomendado se a ação externa realmente for necessária.",
+      model: aiConfig.openai.defaultModel,
+      reason: "GPT econômico faz a triagem; Work só é recomendado se a ação externa realmente for necessária.",
       workRecommended: true,
     };
   }
