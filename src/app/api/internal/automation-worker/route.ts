@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { processAllAutomationQueues } from "@/lib/automation/queue";
+import { automationRuntimeConfig } from "@/lib/automation/runtime-config";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,8 @@ async function handle(request: Request) {
   }
 
   const summary = await processAllAutomationQueues({
-    organizationLimit: envNumber("AUTOMATION_WORKER_ORG_LIMIT", 5),
-    perOrganizationLimit: envNumber("AUTOMATION_WORKER_BATCH_SIZE", 3),
+    organizationLimit: automationRuntimeConfig.organizationLimit,
+    perOrganizationLimit: automationRuntimeConfig.batchSize,
   });
 
   return NextResponse.json({
@@ -49,7 +50,3 @@ function authorized(request: Request, secret: string) {
     timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
-function envNumber(name: string, fallback: number) {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) ? value : fallback;
-}
