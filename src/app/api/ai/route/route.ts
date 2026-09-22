@@ -34,6 +34,9 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ ok: false, error: "Não autorizado." }, { status: 401 });
   }
+  if (session.role !== "owner") {
+    return NextResponse.json({ ok: false, error: "Apenas o proprietário pode executar testes manuais de IA." }, { status: 403 });
+  }
 
   try {
     const parsed = taskSchema.parse(await request.json());
