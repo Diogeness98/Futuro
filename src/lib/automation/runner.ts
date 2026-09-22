@@ -186,6 +186,7 @@ async function persistAiDecision(input: {
     escalated: input.result.escalated ?? false,
     manualReview: input.result.manualReview ?? false,
     workRecommended: input.result.workRecommended ?? false,
+    openAiAttempted: input.result.openAiAttempted ?? false,
     openAiBudget: {
       allowed: input.budget.allowed,
       calls: input.budget.calls,
@@ -204,6 +205,9 @@ async function persistAiDecision(input: {
       confidence: input.result.confidence,
       inputTokens: input.result.usage?.inputTokens,
       outputTokens: input.result.usage?.outputTokens,
+      openAiAttempted: input.result.openAiAttempted ?? false,
+      openAiInputTokens: input.result.openAiUsage?.inputTokens,
+      openAiOutputTokens: input.result.openAiUsage?.outputTokens,
       decision,
     },
   });
