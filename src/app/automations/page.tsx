@@ -151,7 +151,7 @@ export default async function AutomationsPage() {
         <h2>Execuções recentes da fila</h2>
         <table>
           <thead>
-            <tr><th>Quando</th><th>Automação</th><th>Gatilho</th><th>Status</th><th>Tentativas</th><th>Erro</th></tr>
+            <tr><th>Quando</th><th>Automação</th><th>Gatilho</th><th>Status</th><th>Tentativas</th><th>Resultado</th><th>Erro</th></tr>
           </thead>
           <tbody>
             {recentExecutions.map((execution) => (
@@ -164,6 +164,14 @@ export default async function AutomationsPage() {
                 <td>{execution.event.triggerType}</td>
                 <td><span className={executionStatusClass(execution.status)}>{execution.status}</span></td>
                 <td>{execution.attempts}</td>
+                <td>
+                  {execution.result ? (
+                    <details className="queue-result">
+                      <summary>Ver</summary>
+                      <pre>{JSON.stringify(execution.result, null, 2)}</pre>
+                    </details>
+                  ) : "—"}
+                </td>
                 <td className="truncate-cell">{execution.lastError ?? "—"}</td>
               </tr>
             ))}
