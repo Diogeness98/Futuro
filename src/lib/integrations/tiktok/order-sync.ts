@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { enqueueAutomationEvents } from "@/lib/automation/queue";
 import { searchTikTokOrders } from "./client";
 import { normalizeTikTokOrder } from "./order-normalize";
+import { shouldQueueTikTokOrderEvent } from "./sync-policy";
 import { acquireTikTokSyncLock, releaseTikTokSyncLock } from "./sync-lock";
 import { loadTikTokConnection, updateTikTokTokens } from "./storage";
 import { refreshTikTokAccessToken } from "./tokens";
@@ -17,6 +18,7 @@ export interface TikTokOrderSyncSummary {
   pages: number;
   shops: number;
   since: number;
+  initialImport: boolean;
   automationEventsQueued: number;
 }
 
@@ -54,6 +56,7 @@ export async function syncTikTokOrders(
       select: { createdAt: true },
     });
 
+    const initialImport = !lastSync;
     const nowSeconds = Math.floor(Date.now() / 1000);
     const since = lastSync
       ? Math.max(0, Math.floor(lastSync.createdAt.getTime() / 1000) - OVERLAP_SECONDS)
@@ -66,6 +69,7 @@ export async function syncTikTokOrders(
       pages: 0,
       shops: shops.length,
       since,
+      initialImport,
       automationEventsQueued: 0,
     };
 
@@ -85,6 +89,8 @@ export async function syncTikTokOrders(
           entityId: string;
           payload: unknown;
         }> = [];
+        const queueOrderIds: string[] = [];
+        const baselineAt = initialImport ? new Date() : undefined;
 
         if (result.orders.length > 0) {
           const ids = result.orders.map((order) => String(order.id)).filter(Boolean);
@@ -116,18 +122,24 @@ export async function syncTikTokOrders(
                 channel: CHANNEL,
                 status: normalized.status,
                 totalCents: normalized.totalCents,
+                orderCreatedEventAt: baselineAt,
               },
               update: {
                 status: normalized.status,
                 totalCents: normalized.totalCents,
+                ...(initialImport ? { orderCreatedEventAt: baselineAt } : {}),
               },
             });
 
             summary.synced += 1;
-            if (existingIds.has(normalized.externalId)) {
-              summary.updated += 1;
-            } else {
-              summary.created += 1;
+            if (existingIds.has(normalized.externalId)) summary.updated += 1;
+            else summary.created += 1;
+
+            if (shouldQueueTikTokOrderEvent({
+              initialImport,
+              orderCreatedEventAt: persisted.orderCreatedEventAt,
+            })) {
+              queueOrderIds.push(persisted.id);
               queueEvents.push({
                 entityType: "Order",
                 entityId: persisted.id,
@@ -165,6 +177,15 @@ export async function syncTikTokOrders(
               events: queueEvents,
             });
             summary.automationEventsQueued += queued.events;
+
+            await db.order.updateMany({
+              where: {
+                organizationId,
+                id: { in: queueOrderIds },
+                orderCreatedEventAt: null,
+              },
+              data: { orderCreatedEventAt: new Date() },
+            });
           } catch (queueError) {
             console.error(
               "Pedidos TikTok sincronizados, mas falhou ao enfileirar automações:",
