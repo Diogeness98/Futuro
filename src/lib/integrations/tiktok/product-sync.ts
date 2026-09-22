@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { enqueueProductLowStockEvent } from "../../automation/events";
 import { db } from "../../db";
+import { inventoryConfig, shouldEmitLowStockEvent } from "../../inventory/config";
 import { searchTikTokProducts } from "./client";
 import {
   normalizeTikTokProduct,
@@ -17,6 +20,8 @@ export interface TikTokProductSyncSummary {
   variants: number;
   pages: number;
   shops: number;
+  initialImport: boolean;
+  lowStockEventsQueued: number;
 }
 
 export async function syncTikTokProducts(
@@ -44,6 +49,16 @@ export async function syncTikTokProducts(
     const shops = connection.config.shops.filter((shop) => Boolean(shop.cipher));
     if (shops.length === 0) throw new Error("Nenhuma loja TikTok autorizada foi encontrada.");
 
+    const lastSync = await db.activityLog.findFirst({
+      where: {
+        organizationId,
+        action: "integration.tiktok.products_synced",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const initialImport = !lastSync;
+
     const summary: TikTokProductSyncSummary = {
       synced: 0,
       created: 0,
@@ -51,6 +66,8 @@ export async function syncTikTokProducts(
       variants: 0,
       pages: 0,
       shops: shops.length,
+      initialImport,
+      lowStockEventsQueued: 0,
     };
 
     for (const shop of shops) {
@@ -76,17 +93,102 @@ export async function syncTikTokProducts(
               channel: CHANNEL,
               externalId: { in: externalIds },
             },
-            select: { externalId: true },
+            select: {
+              id: true,
+              externalId: true,
+              stock: true,
+              active: true,
+              lowStockEpisodeId: true,
+              lowStockEventAt: true,
+            },
           });
-          const existingIds = new Set(existing.map((product) => product.externalId).filter(Boolean));
+          const existingByExternalId = new Map(
+            existing
+              .filter((product) => Boolean(product.externalId))
+              .map((product) => [product.externalId as string, product]),
+          );
 
           for (const product of normalized) {
-            await persistTikTokProduct(organizationId, product);
+            const previous = existingByExternalId.get(product.externalId);
+            let persisted = await persistTikTokProduct(organizationId, product);
 
             summary.synced += 1;
             summary.variants += product.variants.length;
-            if (existingIds.has(product.externalId)) summary.updated += 1;
+            if (previous) summary.updated += 1;
             else summary.created += 1;
+
+            if (initialImport) {
+              if (!persisted.lowStockEpisodeId || !persisted.lowStockEventAt) {
+                persisted = await db.product.update({
+                  where: { id: persisted.id },
+                  data: {
+                    lowStockEpisodeId: persisted.lowStockEpisodeId ?? `baseline:${persisted.id}`,
+                    lowStockEventAt: persisted.lowStockEventAt ?? new Date(),
+                  },
+                  include: { variants: { orderBy: { externalId: "asc" } } },
+                });
+              }
+              continue;
+            }
+
+            const isLowStock = persisted.active &&
+              persisted.stock <= inventoryConfig.lowStockThreshold;
+
+            if (!isLowStock) {
+              if (persisted.lowStockEpisodeId || persisted.lowStockEventAt) {
+                await db.product.update({
+                  where: { id: persisted.id },
+                  data: {
+                    lowStockEpisodeId: null,
+                    lowStockEventAt: null,
+                  },
+                });
+              }
+              continue;
+            }
+
+            const enteredLowStock = shouldEmitLowStockEvent({
+              stock: persisted.stock,
+              active: persisted.active,
+              threshold: inventoryConfig.lowStockThreshold,
+              previousStock: previous?.stock,
+              previousActive: previous?.active,
+            });
+            const retryUndelivered = Boolean(
+              persisted.lowStockEpisodeId && !persisted.lowStockEventAt,
+            );
+
+            if (!enteredLowStock && !retryUndelivered) continue;
+
+            const episodeId = persisted.lowStockEpisodeId ?? randomUUID();
+
+            if (!persisted.lowStockEpisodeId) {
+              persisted = await db.product.update({
+                where: { id: persisted.id },
+                data: { lowStockEpisodeId: episodeId },
+                include: { variants: { orderBy: { externalId: "asc" } } },
+              });
+            }
+
+            try {
+              const queued = await enqueueProductLowStockEvent({
+                organizationId,
+                product: persisted,
+                threshold: inventoryConfig.lowStockThreshold,
+                episodeId,
+              });
+              summary.lowStockEventsQueued += queued.events;
+
+              await db.product.update({
+                where: { id: persisted.id },
+                data: { lowStockEventAt: new Date() },
+              });
+            } catch (queueError) {
+              console.error(
+                "Produto TikTok sincronizado, mas falhou ao enfileirar estoque baixo:",
+                queueError instanceof Error ? queueError.message : "erro desconhecido",
+              );
+            }
           }
         }
 
