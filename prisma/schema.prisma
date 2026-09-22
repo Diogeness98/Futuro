@@ -63,6 +63,8 @@ model Product {
   active            Boolean          @default(true)
   externalStatus    String?
   externalUpdatedAt DateTime?
+  lowStockEpisodeId String?
+  lowStockEventAt   DateTime?
   variants          ProductVariant[]
   orderItems        OrderItem[]
   createdAt         DateTime         @default(now())
