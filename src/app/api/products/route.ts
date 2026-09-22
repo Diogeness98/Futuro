@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { bodyFromRequest, integer, moneyToCents } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
 import { enqueueProductLowStockEvent } from "@/lib/automation/events";
-import { inventoryConfig } from "@/lib/inventory/config";
+import { inventoryConfig, shouldEmitLowStockEvent } from "@/lib/inventory/config";
 
 export async function GET() {
   const session = await getSession();
@@ -32,7 +32,11 @@ export async function POST(request: Request) {
       metadata: { name: product.name, stock: product.stock, priceCents: product.priceCents },
     });
 
-    if (product.active && product.stock <= inventoryConfig.lowStockThreshold) {
+    if (shouldEmitLowStockEvent({
+      stock: product.stock,
+      active: product.active,
+      threshold: inventoryConfig.lowStockThreshold,
+    })) {
       try {
         await enqueueProductLowStockEvent({
           organizationId: session.organizationId,
