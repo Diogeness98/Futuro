@@ -146,3 +146,6 @@ th { color: var(--muted); font-weight: 600; }
 .queue-metric strong { font-size: 22px; }
 .queue-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
 .queue-actions small { color: var(--muted); line-height: 1.4; max-width: 680px; }
+
+.queue-result summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+.queue-result pre { margin: 7px 0 0; max-width: 360px; max-height: 220px; overflow: auto; background: #0a0d10; border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 11px; white-space: pre-wrap; word-break: break-word; }
