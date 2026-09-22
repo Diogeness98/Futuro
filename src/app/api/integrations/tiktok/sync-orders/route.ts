@@ -24,6 +24,13 @@ export async function POST(request: Request) {
         updated: summary.updated,
         pages: summary.pages,
         shops: summary.shops,
+        initialImport: summary.initialImport,
+        automationEventsQueued: summary.automationEventsQueued,
+        detailBatches: summary.detailBatches,
+        detailsRequested: summary.detailsRequested,
+        detailsSynced: summary.detailsSynced,
+        detailFailures: summary.detailFailures,
+        itemsSynced: summary.itemsSynced,
       },
     });
 
