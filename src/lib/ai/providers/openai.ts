@@ -41,6 +41,7 @@ export async function reviewDecisionWithOpenAI(
   const response = await requestOpenAI({
     model,
     input,
+    maxOutputTokens: aiConfig.openai.reviewMaxOutputTokens,
     text: {
       format: {
         type: "json_schema",
@@ -104,14 +105,15 @@ async function requestOpenAI(input: {
   model: string;
   input: string;
   text?: Record<string, unknown>;
+  maxOutputTokens?: number;
 }): Promise<OpenAIResponseBody> {
   const escalated = input.model === aiConfig.openai.escalationModel;
   const reasoningEffort = escalated
     ? aiConfig.openai.escalationReasoningEffort
     : aiConfig.openai.defaultReasoningEffort;
-  const maxOutputTokens = escalated
+  const maxOutputTokens = input.maxOutputTokens ?? (escalated
     ? aiConfig.openai.escalationMaxOutputTokens
-    : aiConfig.openai.defaultMaxOutputTokens;
+    : aiConfig.openai.defaultMaxOutputTokens);
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
