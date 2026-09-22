@@ -39,12 +39,12 @@ export default async function AiPage() {
     <AppShell active="IA" email={session.email}>
       <div className="eyebrow">Economia de IA</div>
       <h1>Decisões de IA</h1>
-      <p className="lead">Acompanhe quem executou cada tarefa e o consumo das últimas 24 horas. Quando o teto é atingido, GPT é bloqueado automaticamente.</p>
+      <p className="lead">Acompanhe quem executou cada tarefa e o consumo das últimas 24 horas. Toda tentativa GPT entra no disjuntor, mesmo quando o resultado final permanece com Jev.</p>
 
       <div className="grid">
         <Metric label="Decisões registradas" value={total} />
         <Metric label="Resolvidas por Jev" value={jevCount} />
-        <Metric label="Chamadas OpenAI" value={openaiCount} />
+        <Metric label="Respostas finais OpenAI" value={openaiCount} />
         <Metric label="Participação do Jev" value={`${automatedByJev}%`} />
       </div>
 
@@ -69,7 +69,7 @@ export default async function AiPage() {
           </span>
         </div>
         <div className="budget-grid">
-          <BudgetBar label="Chamadas" used={budget.calls} limit={budget.limits.calls} />
+          <BudgetBar label="Tentativas" used={budget.calls} limit={budget.limits.calls} />
           <BudgetBar label="Tokens de entrada" used={budget.inputTokens} limit={budget.limits.inputTokens} />
           <BudgetBar label="Tokens de saída" used={budget.outputTokens} limit={budget.limits.outputTokens} />
         </div>
@@ -83,12 +83,13 @@ export default async function AiPage() {
       <section className="section card table-card">
         <h2>Histórico recente</h2>
         <table>
-          <thead><tr><th>Quando</th><th>Provedor</th><th>Tipo</th><th>Confiança</th><th>Tokens</th><th>Entrada</th></tr></thead>
+          <thead><tr><th>Quando</th><th>Provedor final</th><th>GPT</th><th>Tipo</th><th>Confiança</th><th>Tokens finais</th><th>Entrada</th></tr></thead>
           <tbody>
             {decisions.map((decision) => (
               <tr key={decision.id}>
                 <td>{formatDate(decision.createdAt)}</td>
                 <td><span className="status ok">{decision.provider}</span></td>
+                <td>{decision.openAiAttempted ? <span className="status">tentativa</span> : "—"}</td>
                 <td>{decision.taskType}</td>
                 <td>{decision.confidence == null ? "—" : `${Math.round(decision.confidence * 100)}%`}</td>
                 <td>{(decision.inputTokens ?? 0) + (decision.outputTokens ?? 0) || "—"}</td>
