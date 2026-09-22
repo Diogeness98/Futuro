@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bodyFromRequest } from "@/lib/http";
 import { recordActivity } from "@/lib/activity";
-import { buildAutomationAction } from "@/lib/automation/config";
+import { buildAutomationAction, buildAutomationConditions } from "@/lib/automation/config";
 
 const automationSchema = z.object({
   name: z.string().trim().min(1).max(160),
@@ -14,6 +14,9 @@ const automationSchema = z.object({
   actionInstruction: z.string().trim().max(2_000).optional().or(z.literal("")),
   jevOptions: z.string().trim().max(2_000).optional().or(z.literal("")),
   jevCriteria: z.string().trim().max(4_000).optional().or(z.literal("")),
+  conditionPath: z.string().trim().max(120).optional().or(z.literal("")),
+  conditionOperator: z.enum(["eq", "neq", "gt", "gte", "lt", "lte", "contains"]).optional().or(z.literal("")),
+  conditionValue: z.string().trim().max(500).optional().or(z.literal("")),
   enabled: z.union([z.string(), z.boolean()]).optional(),
 });
 
@@ -42,6 +45,11 @@ export async function POST(request: Request) {
       optionsText: input.jevOptions,
       criteriaText: input.jevCriteria,
     });
+    const conditions = buildAutomationConditions({
+      path: input.conditionPath,
+      operator: input.conditionOperator,
+      value: input.conditionValue,
+    });
 
     const automation = await db.automation.create({
       data: {
@@ -49,6 +57,7 @@ export async function POST(request: Request) {
         name: input.name,
         enabled,
         trigger: toJson({ type: input.triggerType }),
+        conditions: conditions ? toJson(conditions) : undefined,
         action: toJson(action),
       },
     });
@@ -64,6 +73,7 @@ export async function POST(request: Request) {
         enabled,
         triggerType: input.triggerType,
         actionType: input.actionType,
+        hasCondition: Boolean(conditions?.length),
       },
     });
 
