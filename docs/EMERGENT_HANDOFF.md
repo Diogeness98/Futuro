@@ -21,7 +21,7 @@ O repositório `Diogeness98/Futuro` é a fonte de verdade.
 - autenticação própria com cookie HTTP-only/JWT
 - Jev System One adapter
 - OpenAI Responses API
-- TikTok Shop OAuth + assinatura + sincronização inicial de pedidos
+- TikTok Shop OAuth + assinatura + sincronização de pedidos e catálogo somente leitura
 - GitHub Actions para typecheck, testes e build
 
 ## Ordem econômica de IA
@@ -134,6 +134,9 @@ TIKTOK_SHOP_AUTH_URL=
 TIKTOK_SHOP_AUTH_BASE_URL=https://auth.tiktok-shops.com
 TIKTOK_SHOP_API_BASE_URL=https://open-api.tiktokglobalshop.com
 TIKTOK_SHOP_TIMEOUT_MS=20000
+TIKTOK_SYNC_ORG_LIMIT=5
+TIKTOK_SYNC_MAX_PAGES_PER_SHOP=20
+TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES=60
 ```
 
 `TIKTOK_SHOP_AUTH_URL` deve receber o Seller Authorization Link fornecido pelo Partner Center.
@@ -144,7 +147,7 @@ Configurar no Partner Center o callback/redirect da aplicação para:
 <APP_URL>/api/integrations/tiktok/callback
 ```
 
-Na primeira validação, manter TikTok Shop em modo de leitura/sincronização de pedidos. Não implementar fulfillment automático nesta passagem. Para o mercado brasileiro, o fluxo de invoice/nota fiscal deve ser validado antes de qualquer ação de envio.
+Na primeira validação, manter TikTok Shop em modo de leitura para pedidos e catálogo. Não implementar publicação/edição de produtos nem fulfillment automático nesta passagem. Para o mercado brasileiro, o fluxo de invoice/nota fiscal deve ser validado antes de qualquer ação de envio.
 
 O código já implementa:
 
@@ -156,7 +159,11 @@ O código já implementa:
 - armazenamento dos tokens com AES-256-GCM;
 - conexão, refresh e desconexão local;
 - sincronização incremental de pedidos;
-- proteção contra edição manual de pedidos sincronizados.
+- primeira importação de pedidos como baseline sem disparar IA sobre histórico;
+- Search Products / catálogo em modo somente leitura;
+- persistência de produtos e variantes TikTok;
+- sincronização econômica do catálogo, padrão a cada 60 minutos;
+- proteção contra edição manual de pedidos e produtos sincronizados.
 
 Na primeira configuração real do TikTok, apenas inserir secrets e validar o fluxo. Não reescrever o adapter.
 
@@ -178,7 +185,7 @@ Configurar o scheduler do host para chamar:
 - `/api/internal/automation-worker` a cada 1 minuto;
 - `/api/internal/tiktok-sync` a cada 5 minutos.
 
-O worker de automações processa poucos itens por organização e respeita os mesmos limites Jev/GPT do restante do sistema. O sync TikTok é sequencial por organização, sincroniza somente conexões ativas e isola falhas entre organizações.
+O worker de automações processa poucos itens por organização e respeita os mesmos limites Jev/GPT do restante do sistema. O sync TikTok é sequencial por organização, sincroniza somente conexões ativas e isola falhas entre organizações. O endpoint TikTok roda a cada 5 minutos para pedidos; catálogo usa o mesmo cron, mas só é consultado quando o intervalo estiver vencido (60 minutos por padrão).
 
 Valores iniciais:
 
@@ -187,6 +194,7 @@ AUTOMATION_WORKER_ORG_LIMIT=5
 AUTOMATION_WORKER_BATCH_SIZE=3
 TIKTOK_SYNC_ORG_LIMIT=5
 TIKTOK_SYNC_MAX_PAGES_PER_SHOP=20
+TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES=60
 ```
 
 Não aumentar esses valores durante a primeira validação real.
@@ -223,6 +231,8 @@ A tarefa só é considerada concluída quando:
 - clientes podem ser criados, editados e excluídos;
 - pedidos manuais podem ser criados, editados e excluídos;
 - pedidos sincronizados aparecem como gerenciados pela integração;
+- produtos TikTok sincronizados aparecem com variantes/preço/estoque;
+- produtos TikTok não podem ser editados manualmente;
 - página de Automações abre;
 - página de IA abre;
 - página de Integrações abre;
@@ -262,9 +272,11 @@ Somente após todos os critérios básicos passarem:
 6. conectar uma Development/Test Shop;
 7. confirmar lojas autorizadas;
 8. executar a sincronização de pedidos;
-9. validar que pedidos TikTok não podem ser alterados manualmente;
-10. testes ponta a ponta;
-11. deploy de produção.
+9. executar a sincronização de catálogo;
+10. validar que pedidos e produtos TikTok não podem ser alterados manualmente;
+11. confirmar que a primeira importação histórica de pedidos não cria avalanche de automações;
+12. testes ponta a ponta;
+13. deploy de produção.
 
 Após cada etapa bem-sucedida, parar e salvar um checkpoint no GitHub.
 
