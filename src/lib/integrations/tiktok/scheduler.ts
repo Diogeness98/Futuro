@@ -26,6 +26,7 @@ export async function syncConnectedTikTokOrganizations(input: {
       status: "connected",
     },
     select: {
+      id: true,
       organizationId: true,
     },
     orderBy: { updatedAt: "asc" },
@@ -54,6 +55,11 @@ export async function syncConnectedTikTokOrganizations(input: {
       summary.ordersUpdated += result.updated;
       summary.automationEventsQueued += result.automationEventsQueued;
 
+      await db.integration.update({
+        where: { id: connection.id },
+        data: { status: "connected" },
+      });
+
       await recordActivity({
         organizationId: connection.organizationId,
         actorType: "system",
@@ -72,6 +78,11 @@ export async function syncConnectedTikTokOrganizations(input: {
       });
     } catch (error) {
       summary.failed += 1;
+      await db.integration.update({
+        where: { id: connection.id },
+        data: { status: "connected" },
+      }).catch(() => undefined);
+
       const message = error instanceof Error ? error.message : "Falha desconhecida no sync TikTok.";
 
       await recordActivity({
