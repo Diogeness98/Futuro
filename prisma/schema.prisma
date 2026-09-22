@@ -125,6 +125,7 @@ model Order {
   fulfillmentType  String?
   shippingType     String?
   detailsSyncedAt  DateTime?
+  externalUpdatedAt DateTime?
   orderCreatedEventAt DateTime?
   items          OrderItem[]
   createdAt      DateTime     @default(now())
