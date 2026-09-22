@@ -59,6 +59,7 @@ INTEGRATION_ENCRYPTION_KEY=
 AUTOMATION_CRON_SECRET=
 AUTOMATION_WORKER_ORG_LIMIT=5
 AUTOMATION_WORKER_BATCH_SIZE=3
+LOW_STOCK_THRESHOLD=5
 ```
 
 `INTEGRATION_ENCRYPTION_KEY` deve ser uma chave aleatória de 32 bytes em Base64 e deve existir apenas no ambiente do servidor.
@@ -166,6 +167,9 @@ Configurar o scheduler do host para chamar esse endpoint periodicamente. O worke
 Recomendação inicial de produção: executar a cada minuto com `AUTOMATION_WORKER_ORG_LIMIT=5` e `AUTOMATION_WORKER_BATCH_SIZE=3`. Não aumentar esses valores durante a primeira validação real.
 
 A fila possui:
+- `order.created` já conectado para pedidos manuais e novos pedidos TikTok;
+- `product.low_stock` já conectado ao cruzar o limiar configurado;
+- `LOW_STOCK_THRESHOLD` com padrão 5;
 - execução idempotente por evento × automação;
 - máximo de 3 tentativas;
 - recuperação de claims travados;
