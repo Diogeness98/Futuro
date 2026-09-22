@@ -127,6 +127,7 @@ model Automation {
   trigger        Json
   conditions     Json?
   action         Json
+  eventExecutions AutomationEventExecution[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -179,7 +180,27 @@ model AutomationEvent {
   lastError      String?
   createdAt      DateTime     @default(now())
   processedAt    DateTime?
+  executions     AutomationEventExecution[]
 
+  @@unique([organizationId, triggerType, entityType, entityId])
   @@index([organizationId, status, createdAt])
   @@index([organizationId, triggerType, entityId])
+}
+
+model AutomationEventExecution {
+  id           String          @id @default(cuid())
+  eventId      String
+  automationId String
+  event        AutomationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  automation   Automation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  status       String          @default("pending")
+  attempts     Int             @default(0)
+  lastError    String?
+  startedAt    DateTime?
+  processedAt  DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@unique([eventId, automationId])
+  @@index([status, createdAt])
+  @@index([automationId, status])
 }
