@@ -39,7 +39,10 @@ O repositório já contém:
 - Get Authorized Shops;
 - refresh token;
 - sincronização incremental de pedidos TikTok;
-- proteção contra edição manual de pedidos sincronizados;
+- importação inicial de pedidos TikTok sem disparar IA sobre histórico;
+- sincronização somente leitura do catálogo TikTok;
+- produtos e variantes TikTok com preço, estoque e status;
+- proteção contra edição manual de pedidos e produtos sincronizados;
 - testes unitários e CI com typecheck, testes e build.
 
 ## Desenvolvimento local
@@ -98,6 +101,7 @@ JEV_MODEL=jev-latest
 TIKTOK_SHOP_APP_KEY=
 TIKTOK_SHOP_APP_SECRET=
 TIKTOK_SHOP_AUTH_URL=
+TIKTOK_PRODUCT_SYNC_INTERVAL_MINUTES=60
 ```
 
 ### Secrets
@@ -135,9 +139,12 @@ Então:
 2. clique em **Conectar TikTok Shop**;
 3. conclua a autorização de seller;
 4. confirme as lojas autorizadas;
-5. use **Sincronizar pedidos**.
+5. use **Sincronizar pedidos**;
+6. use **Sincronizar catálogo** para validar produtos e variantes.
 
-Pedidos importados usam o canal `tiktok_shop` e são somente leitura no Futuro; atualizações devem vir da integração.
+Pedidos e produtos importados usam o canal `tiktok_shop` e são somente leitura no Futuro; atualizações devem vir da integração.
+
+A primeira importação de pedidos é tratada como baseline histórico e não dispara automações/IA. Depois dela, apenas pedidos novos entram na fila `order.created`.
 
 Para desenvolvimento, valide primeiro com uma Development/Test Shop.
 
@@ -174,7 +181,7 @@ GET/POST /api/internal/tiktok-sync
 Authorization: Bearer <AUTOMATION_CRON_SECRET>
 ```
 
-Cadência inicial recomendada: automações a cada 1 minuto e TikTok Shop a cada 5 minutos.
+Cadência inicial recomendada: automações a cada 1 minuto e TikTok Shop a cada 5 minutos. O mesmo endpoint TikTok verifica pedidos em cada execução e só sincroniza catálogo quando o intervalo configurado estiver vencido — padrão de 60 minutos.
 
 O processamento tem lotes pequenos, máximo de 3 tentativas, recuperação de claims travados, revisão humana explícita e dead-letter com retry manual pelo painel.
 
@@ -197,6 +204,7 @@ O objetivo do Emergent é importar, configurar infraestrutura/secrets, validar f
 - decisões mock nunca executam automaticamente;
 - GPT é bloqueado ao atingir o orçamento configurado;
 - pedidos sincronizados não podem ser editados/excluídos manualmente;
+- produtos TikTok sincronizados são somente leitura;
 - chamadas externas possuem timeout;
 - falhas de provedor são enviadas para revisão segura.
 
@@ -210,7 +218,9 @@ Validar com credenciais reais em ambiente de teste:
 4. TikTok Shop Development/Test Shop;
 5. automações manuais;
 6. sincronização de pedidos;
-7. deploy de produção.
+7. sincronização de catálogo;
+8. validar que pedidos e produtos TikTok permanecem somente leitura;
+9. deploy de produção.
 
 
 ## Migrações do banco
