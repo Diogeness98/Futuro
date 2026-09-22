@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/auth";
+import {
+  clearLoginThrottle,
+  loginThrottleBlocked,
+  loginThrottleKey,
+  recordLoginFailure,
+} from "@/lib/auth/login-throttle";
 import { bodyFromRequest } from "@/lib/http";
 
 const schema = z.object({
@@ -16,6 +22,11 @@ export async function POST(request: Request) {
   try {
     const input = schema.parse(await bodyFromRequest(request));
     const email = input.email.toLowerCase();
+    const throttleKey = loginThrottleKey(email, request);
+
+    if (await loginThrottleBlocked(throttleKey)) {
+      return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
+    }
 
     const user = await db.user.findUnique({
       where: { email },
@@ -32,8 +43,11 @@ export async function POST(request: Request) {
     const membership = user?.memberships[0];
 
     if (!user || !passwordValid || !membership) {
+      await recordLoginFailure(throttleKey);
       return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
     }
+
+    await clearLoginThrottle(throttleKey);
 
     await setSession({
       userId: user.id,
