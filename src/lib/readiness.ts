@@ -21,7 +21,7 @@ export function evaluateRuntimeReadiness(
     {
       id: "app_url",
       label: "URL pública da aplicação",
-      ready: validHttpUrl(env.APP_URL),
+      ready: validAppUrl(env.APP_URL, env.NODE_ENV),
       detail: "APP_URL deve apontar para a URL HTTPS do Futuro em produção.",
     },
     {
@@ -84,10 +84,11 @@ export function evaluateRuntimeReadiness(
   };
 }
 
-function validHttpUrl(value?: string) {
+function validAppUrl(value: string | undefined, nodeEnv: string | undefined) {
   if (!value) return false;
   try {
     const url = new URL(value);
+    if (nodeEnv === "production") return url.protocol === "https:";
     return url.protocol === "https:" || url.protocol === "http:";
   } catch {
     return false;
