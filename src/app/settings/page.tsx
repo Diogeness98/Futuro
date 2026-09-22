@@ -1,6 +1,8 @@
 import { AppShell } from "@/components/app-shell";
 import { requireSession } from "@/lib/auth";
 import { aiConfig } from "@/lib/ai/config";
+import { automationRuntimeConfig } from "@/lib/automation/runtime-config";
+import { inventoryConfig } from "@/lib/inventory/config";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,10 @@ export default async function SettingsPage() {
             <div><dt>Chamadas / 24h</dt><dd>{aiConfig.openai.maxCallsPer24h.toLocaleString("pt-BR")}</dd></div>
             <div><dt>Entrada / 24h</dt><dd>{aiConfig.openai.maxInputTokensPer24h.toLocaleString("pt-BR")} tokens</dd></div>
             <div><dt>Saída / 24h</dt><dd>{aiConfig.openai.maxOutputTokensPer24h.toLocaleString("pt-BR")} tokens</dd></div>
+            <div><dt>Worker automático</dt><dd>{automationRuntimeConfig.cronConfigured ? "Configurado" : "Manual"}</dd></div>
+            <div><dt>Organizações por ciclo</dt><dd>{automationRuntimeConfig.organizationLimit}</dd></div>
+            <div><dt>Eventos por organização</dt><dd>{automationRuntimeConfig.batchSize}</dd></div>
+            <div><dt>Estoque baixo</dt><dd>≤ {inventoryConfig.lowStockThreshold} unidades</dd></div>
           </dl>
         </section>
       </div>
