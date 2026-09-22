@@ -70,8 +70,8 @@ export function evaluateRuntimeReadiness(
     {
       id: "worker",
       label: "Worker de automações",
-      ready: (env.AUTOMATION_CRON_SECRET?.length ?? 0) >= 24,
-      detail: "AUTOMATION_CRON_SECRET deve proteger o endpoint interno do scheduler.",
+      ready: (env.AUTOMATION_CRON_SECRET?.length ?? 0) >= 32,
+      detail: "AUTOMATION_CRON_SECRET deve ter pelo menos 32 caracteres e proteger os endpoints internos.",
     },
   ];
 
