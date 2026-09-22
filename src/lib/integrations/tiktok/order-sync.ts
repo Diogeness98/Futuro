@@ -27,8 +27,8 @@ export async function syncTikTokOrders(
   const connection = await loadTikTokConnection(organizationId);
   if (!connection) throw new Error("TikTok Shop não está conectado.");
 
-  const locked = await acquireTikTokSyncLock(organizationId);
-  if (!locked) {
+  const lockToken = await acquireTikTokSyncLock(organizationId);
+  if (!lockToken) {
     throw new Error("Uma sincronização TikTok Shop já está em andamento para esta organização.");
   }
 
@@ -187,7 +187,7 @@ export async function syncTikTokOrders(
 
     return summary;
   } finally {
-    await releaseTikTokSyncLock(organizationId).catch((error) => {
+    await releaseTikTokSyncLock(organizationId, lockToken).catch((error) => {
       console.error(
         "Falha ao liberar lock de sincronização TikTok:",
         error instanceof Error ? error.message : "erro desconhecido",
