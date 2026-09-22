@@ -121,7 +121,7 @@ function buildAiTask(
       taskType: "decision",
       options: action.options,
       decisionInstructions: action.instruction,
-      criteria: Object.fromEntries(action.options.map((option) => [option, option])),
+      criteria: action.criteria,
     };
   }
 
