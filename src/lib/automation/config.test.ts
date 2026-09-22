@@ -7,11 +7,30 @@ describe("automation config", () => {
       type: "jev.decide",
       instruction: "Escolha uma ação",
       optionsText: "processar, revisar, processar",
+      criteriaText: "processar: Pedido normal\nrevisar: Pedido com exceção",
     });
 
     expect(action.type).toBe("jev.decide");
     if (action.type === "jev.decide") {
       expect(action.options).toEqual(["processar", "revisar"]);
+      expect(action.criteria).toEqual({
+        processar: "Pedido normal",
+        revisar: "Pedido com exceção",
+      });
+    }
+  });
+
+  it("usa nome da opção como critério quando descrição falta", () => {
+    const action = buildAutomationAction({
+      type: "jev.decide",
+      optionsText: "aprovar,revisar",
+      criteriaText: "aprovar: Pode seguir",
+    });
+
+    expect(action.type).toBe("jev.decide");
+    if (action.type === "jev.decide") {
+      expect(action.criteria.aprovar).toBe("Pode seguir");
+      expect(action.criteria.revisar).toBe("revisar");
     }
   });
 
